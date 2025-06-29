@@ -1,5 +1,5 @@
 # VoxSynopsis
-# Gravador e Transcritor de Áudio para Whisper
+# VoxSynopsis
 
 Este é um aplicativo de desktop simples, construído com Python e PyQt5, que permite gravar áudio de alta qualidade, aplicar pós-processamento (redução de ruído e normalização) e transcrever automaticamente os áudios gravados usando o modelo Whisper da OpenAI.
 
@@ -121,11 +121,11 @@ O FFmpeg é uma ferramenta essencial para o Whisper processar arquivos de áudio
 
 ### 1. Baixe o Código
 
-Baixe o arquivo `gravador_whisper.py` para uma pasta em seu computador. Por exemplo, você pode criar uma pasta chamada `IA40` em `C:\Users\SeuUsuario\Documentos\IA40`.
+Baixe o arquivo `vox_synopsis.py` para uma pasta em seu computador. Por exemplo, você pode criar uma pasta chamada `IA40` em `C:\Users\SeuUsuario\Documentos\IA40`.
 
 ### 2. Instale as Dependências do Python
 
-Abra o "Prompt de Comando" ou "PowerShell" e navegue até a pasta onde você salvou o arquivo `gravador_whisper.py`. Por exemplo, se você salvou em `C:\Users\SeuUsuario\Documentos\IA40`:
+Abra o "Prompt de Comando" ou "PowerShell" e navegue até a pasta onde você salvou o arquivo `vox_synopsis.py`. Por exemplo, se você salvou em `C:\Users\SeuUsuario\Documentos\IA40`:
 
 ```powershell
 cd C:\Users\SeuUsuario\Documentos\IA40
@@ -168,13 +168,13 @@ Se você deseja gravar o "som do sistema" (áudio que está sendo reproduzido no
 
 ## Como Usar o Aplicativo
 
-1.  Abra o "Prompt de Comando" ou "PowerShell" e navegue até a pasta onde você salvou o arquivo `gravador_whisper.py`.
+1.  Abra o "Prompt de Comando" ou "PowerShell" e navegue até a pasta onde você salvou o arquivo `vox_synopsis.py`.
     ```powershell
     cd C:\Users\SeuUsuario\Documentos\IA40
     ```
 2.  Execute o aplicativo digitando:
     ```powershell
-    python gravador_whisper.py
+    python vox_synopsis.py
     ```
     A janela do aplicativo será aberta.
 

@@ -160,7 +160,7 @@ class AudioRecorderApp(QMainWindow):
     """
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Gravador de Áudio para Whisper")
+        self.setWindowTitle("VoxSynopsis")
         self.setGeometry(100, 100, 450, 300) # Ajusta o tamanho da janela
 
         # Define o caminho de saída padrão
@@ -235,7 +235,7 @@ class AudioRecorderApp(QMainWindow):
         self.transcribe_button = QPushButton("Transcrever Áudio")
         self.transcribe_button.clicked.connect(self.start_transcription)
 
-        self.settings_button = QPushButton("Configurações do Whisper")
+        self.settings_button = QPushButton("Configurações")
         self.settings_button.clicked.connect(self.open_settings_dialog)
         button_layout.addWidget(self.transcribe_button)
         
@@ -493,12 +493,12 @@ class AudioRecorderApp(QMainWindow):
 
     def open_settings_dialog(self):
         """
-        Abre a caixa de diálogo de configurações do Whisper.
+        Abre a caixa de diálogo de configurações do VoxSynopsis.
         """
         settings_dialog = SettingsDialog(self.whisper_settings, self)
         if settings_dialog.exec_(): # Se o usuário clicou em OK
             self.whisper_settings = settings_dialog.get_settings()
-            QMessageBox.information(self, "Configurações Salvas", "As configurações do Whisper foram salvas com sucesso!")
+            QMessageBox.information(self, "Configurações Salvas", "As configurações do VoxSynopsis foram salvas com sucesso!")
 
     def closeEvent(self, event):
         """
@@ -513,7 +513,7 @@ class AudioRecorderApp(QMainWindow):
 class SettingsDialog(QDialog):
     def __init__(self, current_settings, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Configurações do Whisper")
+        self.setWindowTitle("Configurações do VoxSynopsis")
         self.setGeometry(200, 200, 600, 500)
         self.settings = current_settings.copy() # Trabalha com uma cópia
 
