@@ -134,7 +134,7 @@ cd C:\Users\SeuUsuario\Documentos\IA40
 Agora, instale todas as bibliotecas Python necessárias. Digite o seguinte comando e pressione Enter:
 
 ```powershell
-pip install PyQt5 sounddevice numpy soundfile noisereduce scipy openai-whisper psutil
+pip install PyQt5 sounddevice numpy soundfile noisereduce scipy openai-whisper psutil torch torchaudio
 ```
 
 *   **`PyQt5`**: Para a interface gráfica do aplicativo.

@@ -5,7 +5,7 @@ import soundfile as sf
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QComboBox, QProgressBar, QMessageBox,
                              QLineEdit, QFileDialog, QCheckBox, QTextEdit, QDialog, QFormLayout,
-                             QSlider, QDialogButtonBox)
+                             QSlider, QDialogButtonBox, QScrollArea)
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
 import datetime
 import os
@@ -14,6 +14,10 @@ import whisper
 import glob
 import time
 import psutil
+try:
+    import torch
+except ImportError:
+    torch = None
 
 # --- Configurações de Áudio ---
 SAMPLE_RATE = 48000  # Qualidade de estúdio (44.1kHz é qualidade de CD)
@@ -178,7 +182,9 @@ class AudioRecorderApp(QMainWindow):
             "best_of": 5,
             "beam_size": 5,
             "condition_on_previous_text": True,
-            "initial_prompt": ""
+            "initial_prompt": "",
+            "device": "cpu",
+            "batch_size": 16
         }
 
         # Monitoramento de recursos
@@ -235,9 +241,10 @@ class AudioRecorderApp(QMainWindow):
         self.transcribe_button = QPushButton("Transcrever Áudio")
         self.transcribe_button.clicked.connect(self.start_transcription)
 
-        self.settings_button = QPushButton("Configurações")
+        self.settings_button = QPushButton("Cfg.Whisper")
         self.settings_button.clicked.connect(self.open_settings_dialog)
         button_layout.addWidget(self.transcribe_button)
+        button_layout.addWidget(self.settings_button)
         
         main_layout.addLayout(button_layout)
         
@@ -514,27 +521,45 @@ class SettingsDialog(QDialog):
     def __init__(self, current_settings, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Configurações do VoxSynopsis")
-        self.setGeometry(200, 200, 600, 500)
+        self.setFixedSize(600, 650) # Define um tamanho fixo para a janela
         self.settings = current_settings.copy() # Trabalha com uma cópia
 
         self.layout = QVBoxLayout(self)
 
-        # Formulário de configurações
-        self.form_layout = QFormLayout()
+        # Scroll Area
+        scroll_area = QScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+        self.layout.addWidget(scroll_area)
+
+        # Widget para conter o formulário
+        scroll_content = QWidget()
+        self.form_layout = QFormLayout(scroll_content)
+        scroll_area.setWidget(scroll_content)
+
+        # --- Início das Configurações ---
 
         # Modelo
         self.model_combo = QComboBox()
         self.model_combo.addItems(["tiny", "base", "small", "medium"])
         self.model_combo.setCurrentText(self.settings.get("model", "medium"))
         self.form_layout.addRow("Modelo:", self.model_combo)
-        self.form_layout.addRow("", QLabel("""Escolha o tamanho do modelo. Modelos maiores (como 'large') são mais precisos, mas exigem significativamente mais CPU e RAM, resultando em transcrições mais lentas. Modelos menores (como 'tiny', 'base', 'small') são mais rápidos, mas menos precisos. 'medium' oferece um bom equilíbrio entre precisão e desempenho para a maioria das CPUs."""))
+        self.form_layout.addRow("", QLabel("Modelos maiores são mais precisos, porém mais lentos. 'medium' oferece um bom equilíbrio."))
+
+        # Dispositivo
+        self.device_combo = QComboBox()
+        self.device_combo.addItems(["cpu", "cuda"])
+        if not torch or not torch.cuda.is_available():
+            self.device_combo.model().item(1).setEnabled(False)
+        self.device_combo.setCurrentText(self.settings.get("device", "cpu"))
+        self.form_layout.addRow("Dispositivo:", self.device_combo)
+        self.form_layout.addRow("", QLabel("'cuda' (GPU) é mais rápido, mas requer uma placa NVIDIA compatível."))
 
         # Idioma
         self.language_combo = QComboBox()
         self.language_combo.addItems(["pt", "en", "auto"])
         self.language_combo.setCurrentText(self.settings.get("language", "pt"))
         self.form_layout.addRow("Idioma:", self.language_combo)
-        self.form_layout.addRow("", QLabel("\nIdioma do áudio. 'auto' tenta detectar automaticamente.\n"))
+        self.form_layout.addRow("", QLabel("Idioma do áudio. 'auto' para detecção automática."))
 
         # Temperatura
         self.temperature_slider = QSlider(Qt.Horizontal)
@@ -544,7 +569,7 @@ class SettingsDialog(QDialog):
         self.temperature_label = QLabel(f"Temperatura: {self.temperature_slider.value() / 10.0}")
         self.temperature_slider.valueChanged.connect(lambda v: self.temperature_label.setText(f"Temperatura: {v / 10.0}"))
         self.form_layout.addRow(self.temperature_label, self.temperature_slider)
-        self.form_layout.addRow("", QLabel("\nControla a 'criatividade' da transcrição. 0.0 é mais determinístico (menos erros, mas menos flexível), 1.0 é mais 'criativo'.\n"))
+        self.form_layout.addRow("", QLabel("Controla a 'criatividade' da transcrição. 0.0 é mais determinístico."))
 
         # Best Of
         self.best_of_slider = QSlider(Qt.Horizontal)
@@ -554,7 +579,7 @@ class SettingsDialog(QDialog):
         self.best_of_label = QLabel(f"Best Of: {self.best_of_slider.value()}")
         self.best_of_slider.valueChanged.connect(lambda v: self.best_of_label.setText(f"Best Of: {v}"))
         self.form_layout.addRow(self.best_of_label, self.best_of_slider)
-        self.form_layout.addRow("", QLabel("\nNúmero de candidatos a considerar. Valores maiores podem aumentar a precisão, mas também o tempo de processamento.\n"))
+        self.form_layout.addRow("", QLabel("Número de candidatos a considerar. Valores maiores podem aumentar a precisão."))
 
         # Beam Size
         self.beam_size_slider = QSlider(Qt.Horizontal)
@@ -564,18 +589,28 @@ class SettingsDialog(QDialog):
         self.beam_size_label = QLabel(f"Beam Size: {self.beam_size_slider.value()}")
         self.beam_size_slider.valueChanged.connect(lambda v: self.beam_size_label.setText(f"Beam Size: {v}"))
         self.form_layout.addRow(self.beam_size_label, self.beam_size_slider)
-        self.form_layout.addRow("", QLabel("\nNúmero de 'caminhos' de transcrição a explorar simultaneamente. Valores maiores podem melhorar a precisão, mas aumentam o uso de CPU e RAM.\n"))
+        self.form_layout.addRow("", QLabel("Número de 'caminhos' de transcrição a explorar. Valores maiores aumentam precisão e uso de recursos."))
 
         # Condition on Previous Text
         self.condition_checkbox = QCheckBox("Condicionar no texto anterior")
         self.condition_checkbox.setChecked(self.settings.get("condition_on_previous_text", True))
         self.form_layout.addRow("", self.condition_checkbox)
-        self.form_layout.addRow("", QLabel("\nSe marcado, o Whisper usará o texto da transcrição anterior para ajudar na coerência do texto atual. Recomendado para áudios longos.\n"))
+        self.form_layout.addRow("", QLabel("Usa o texto anterior para coerência. Recomendado para áudios longos."))
 
         # Initial Prompt
         self.initial_prompt_edit = QLineEdit(self.settings.get("initial_prompt", ""))
         self.form_layout.addRow("Prompt Inicial:", self.initial_prompt_edit)
-        self.form_layout.addRow("", QLabel("\nUm texto que pode ser usado para guiar o modelo no início da transcrição (ex: 'O áudio é sobre reunião de negócios.').\n"))
+        self.form_layout.addRow("", QLabel("Texto para guiar o modelo no início da transcrição."))
+
+        # Batch Size
+        self.batch_size_slider = QSlider(Qt.Horizontal)
+        self.batch_size_slider.setRange(1, 128)
+        self.batch_size_slider.setSingleStep(1)
+        self.batch_size_slider.setValue(self.settings.get("batch_size", 16))
+        self.batch_size_label = QLabel(f"Batch Size: {self.batch_size_slider.value()}")
+        self.batch_size_slider.valueChanged.connect(lambda v: self.batch_size_label.setText(f"Batch Size: {v}"))
+        self.form_layout.addRow(self.batch_size_label, self.batch_size_slider)
+        self.form_layout.addRow("", QLabel("Valores maiores podem acelerar a transcrição em GPUs, mas consomem mais memória."))
 
         self.layout.addLayout(self.form_layout)
 
@@ -597,12 +632,23 @@ class SettingsDialog(QDialog):
         """
         cpu_count = psutil.cpu_count(logical=True)
         total_ram_gb = psutil.virtual_memory().total / (1024**3) # RAM em GB
+        gpu_available = torch and torch.cuda.is_available()
 
         QMessageBox.information(self, "Análise de Hardware", 
-                                  f"CPU Cores (lógicos): {cpu_count}\nRAM Total: {total_ram_gb:.2f} GB\n\n" \
+                                  f"CPU Cores (lógicos): {cpu_count}\nRAM Total: {total_ram_gb:.2f} GB\nGPU disponível: {'Sim' if gpu_available else 'Não'}\n\n" \
                                   "Ajustando configurações do Whisper com base nesta análise.")
 
         # Heurísticas para configuração automática
+        if gpu_available:
+            self.device_combo.setCurrentText("cuda")
+            self.batch_size_slider.setValue(16)
+            self.model_combo.setCurrentText("medium")
+            self.temperature_slider.setValue(0) # 0.0
+            self.best_of_slider.setValue(5)
+            self.beam_size_slider.setValue(5)
+            self.condition_checkbox.setChecked(True)
+            self.initial_prompt_edit.clear()
+            QMessageBox.information(self, "Configuração Automática", "GPU detectada! Sugerindo modelo 'medium' com processamento em CUDA e batch size 16.")
         if total_ram_gb < 4 or cpu_count < 2: # Máquinas mais fracas
             self.model_combo.setCurrentText("small")
             self.temperature_slider.setValue(0) # 0.0
@@ -644,6 +690,8 @@ class SettingsDialog(QDialog):
         self.settings["beam_size"] = self.beam_size_slider.value()
         self.settings["condition_on_previous_text"] = self.condition_checkbox.isChecked()
         self.settings["initial_prompt"] = self.initial_prompt_edit.text()
+        self.settings["device"] = self.device_combo.currentText()
+        self.settings["batch_size"] = self.batch_size_slider.value()
         return self.settings
 
 
@@ -663,8 +711,12 @@ class TranscriptionThread(QThread):
 
     def run(self):
         try:
-            self.update_status.emit({"text": f"Carregando modelo Whisper ({self.whisper_settings['model']})... Isso pode levar um tempo.", "last_time": 0, "total_time": 0})
-            model = whisper.load_model(self.whisper_settings["model"])
+            device = self.whisper_settings.get("device", "cpu")
+            batch_size = self.whisper_settings.get("batch_size", 16)
+            fp16 = device == "cuda"
+
+            self.update_status.emit({"text": f"Carregando modelo Whisper ({self.whisper_settings['model']}) no dispositivo {device}... Isso pode levar um tempo.", "last_time": 0, "total_time": 0})
+            model = whisper.load_model(self.whisper_settings["model"], device=device)
             self.update_status.emit({"text": "Modelo carregado. Procurando arquivos...", "last_time": 0, "total_time": 0})
 
             # Procura por arquivos .wav, dando preferência aos processados
@@ -696,7 +748,7 @@ class TranscriptionThread(QThread):
                 
                 # Cronometra a transcrição
                 start_time = time.time()
-                result = model.transcribe(filepath, **self.whisper_settings, fp16=False) # fp16=False para CPU
+                result = model.transcribe(filepath, **self.whisper_settings, fp16=fp16, batch_size=batch_size)
                 end_time = time.time()
 
                 last_file_time = end_time - start_time
