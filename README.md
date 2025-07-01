@@ -1,7 +1,7 @@
 # VoxSynopsis
 # VoxSynopsis
 
-Este é um aplicativo de desktop simples, construído com Python e PyQt5, que permite gravar áudio de alta qualidade, aplicar pós-processamento (redução de ruído e normalização) e transcrever automaticamente os áudios gravados usando o modelo Whisper da OpenAI.
+Este é um aplicativo de desktop simples, construído com Python e PyQt5, que permite gravar áudio de alta qualidade, aplicar pós-processamento (redução de ruído e normalização) e transcrever automaticamente os áudios gravados usando o modelo WhisperX (uma versão otimizada do Whisper da OpenAI).
 
 ## Funcionalidades
 
@@ -13,11 +13,13 @@ Este é um aplicativo de desktop simples, construído com Python e PyQt5, que pe
 *   **Pós-processamento de Áudio:**
     *   Opcionalmente, aplica redução de ruído e normalização de volume aos arquivos gravados para otimizar a qualidade para transcrição.
     *   Salva uma versão processada do áudio (`_processed.wav`).
-*   **Transcrição com Whisper:**
+*   **Transcrição com WhisperX:**
     *   Transcreve arquivos de áudio (preferencialmente os processados) da pasta de destino.
-    *   Utiliza o modelo `medium` do Whisper, otimizado para CPU e com boa precisão para português.
+    *   Utiliza o modelo WhisperX, que oferece melhor desempenho e recursos adicionais.
+    *   **VAD (Voice Activity Detection):** Opcionalmente filtra silêncios para transcrições mais limpas.
+    *   **Diarização:** Opcionalmente identifica e rotula diferentes falantes no áudio (requer Hugging Face Token).
     *   Exibe o progresso da transcrição (arquivo atual, tempo do último arquivo, tempo total).
-    *   Compila todas as transcrições em um único arquivo de texto (`transcricao_completa.txt`).
+    *   Compila todas as transcrições em um único arquivo de texto (`transcricao_completa_whisperx.txt`).
 *   **Monitoramento de Recursos:**
     *   Exibe o uso de CPU e memória da aplicação em tempo real através de barras de progresso.
 
@@ -134,7 +136,7 @@ cd C:\Users\SeuUsuario\Documentos\IA40
 Agora, instale todas as bibliotecas Python necessárias. Digite o seguinte comando e pressione Enter:
 
 ```powershell
-pip install PyQt5 sounddevice numpy soundfile noisereduce scipy openai-whisper psutil torch torchaudio
+pip install PyQt5 sounddevice numpy soundfile noisereduce scipy whisperx psutil torch torchaudio huggingface_hub
 ```
 
 *   **`PyQt5`**: Para a interface gráfica do aplicativo.
@@ -145,6 +147,10 @@ pip install PyQt5 sounddevice numpy soundfile noisereduce scipy openai-whisper p
 *   **`scipy`**: Uma dependência do `noisereduce` para computação científica.
 *   **`openai-whisper`**: A biblioteca oficial do Whisper para transcrição de áudio.
 *   **`psutil`**: Para monitorar o uso de CPU e memória do aplicativo.
+*   **`whisperx`**: A biblioteca otimizada para transcrição de áudio, incluindo VAD e diarização.
+*   **`huggingface_hub`**: Necessário para autenticação com o Hugging Face, especialmente para baixar modelos de diarização.
+
+**Importante sobre Diarização:** Para usar a funcionalidade de diarização (separação de falantes) do `whisperx`, você precisará de um token de autenticação do Hugging Face. Você pode obter um gratuitamente em [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens). Este token deve ser inserido nas configurações do aplicativo. Sem ele, a diarização não funcionará.
 
 ## Configuração da Gravação de Áudio do Sistema (Opcional)
 
@@ -195,6 +201,36 @@ Se você deseja gravar o "som do sistema" (áudio que está sendo reproduzido no
 *   **Tempo do Último Arquivo:** Mostra quanto tempo o Whisper levou para transcrever o último arquivo.
 *   **Tempo Total de Transcrição:** Acumula o tempo total gasto na transcrição de todos os arquivos.
 *   **CPU / Memória:** Barras de progresso que mostram o uso de CPU e memória do aplicativo em tempo real.
+*   **Cfg.Whisper:** Abre uma janela de configurações avançadas para o modelo WhisperX, onde você pode ajustar:
+    *   **Modelo:** Tamanho do modelo (tiny, base, small, medium, large). Modelos maiores são mais precisos, mas exigem mais recursos.
+    *   **Dispositivo:** Onde o modelo será executado (CPU ou CUDA/GPU). CUDA é muito mais rápido se você tiver uma placa NVIDIA compatível.
+    *   **Tipo de Computação:** Define a precisão dos cálculos (float16 para GPUs mais recentes, int8 para CPUs ou GPUs mais antigas). Afeta o desempenho e o uso de memória.
+    *   **Idioma:** O idioma do áudio a ser transcrito (português, inglês, ou detecção automática).
+    *   **Temperatura:** Controla a "criatividade" da transcrição. Valores mais baixos (próximos de 0) tornam a transcrição mais determinística.
+    *   **Best Of:** Número de candidatos a considerar durante a decodificação. Valores maiores podem aumentar a precisão.
+    *   **Beam Size:** Número de "caminhos" de transcrição a explorar. Valores maiores aumentam precisão e uso de recursos.
+    *   **Condicionar no texto anterior:** Usa o texto já transcrito para guiar a transcrição do próximo segmento, útil para manter a coerência em áudios longos.
+    *   **Prompt Inicial:** Um texto que pode ser fornecido ao modelo para guiar a transcrição desde o início (ex: nomes próprios, termos técnicos).
+    *   **Batch Size:** O número de amostras de áudio processadas em paralelo. Valores maiores podem acelerar a transcrição em GPUs, mas consomem mais memória.
+    *   **Usar VAD (Voice Activity Detection):** Filtra silêncios, melhorando a precisão e removendo trechos sem fala.
+    *   **Usar Diarização (Separação de Falantes):** Identifica e rotula diferentes falantes no áudio. **Requer um Hugging Face Token.**
+    *   **Hugging Face Token:** Campo para inserir seu token de autenticação do Hugging Face, necessário para a diarização.
+    *   **Cfg. Automática:** Analisa o hardware do seu computador e sugere configurações otimizadas para o WhisperX.
+*   **Cfg.Whisper:** Abre uma janela de configurações avançadas para o modelo WhisperX, onde você pode ajustar:
+    *   **Modelo:** Tamanho do modelo (tiny, base, small, medium, large). Modelos maiores são mais precisos, mas exigem mais recursos.
+    *   **Dispositivo:** Onde o modelo será executado (CPU ou CUDA/GPU). CUDA é muito mais rápido se você tiver uma placa NVIDIA compatível.
+    *   **Tipo de Computação:** Define a precisão dos cálculos (float16 para GPUs mais recentes, int8 para CPUs ou GPUs mais antigas). Afeta o desempenho e o uso de memória.
+    *   **Idioma:** O idioma do áudio a ser transcrito (português, inglês, ou detecção automática).
+    *   **Temperatura:** Controla a "criatividade" da transcrição. Valores mais baixos (próximos de 0) tornam a transcrição mais determinística.
+    *   **Best Of:** Número de candidatos a considerar durante a decodificação. Valores maiores podem aumentar a precisão.
+    *   **Beam Size:** Número de "caminhos" de transcrição a explorar. Valores maiores aumentam precisão e uso de recursos.
+    *   **Condicionar no texto anterior:** Usa o texto já transcrito para guiar a transcrição do próximo segmento, útil para manter a coerência em áudios longos.
+    *   **Prompt Inicial:** Um texto que pode ser fornecido ao modelo para guiar a transcrição desde o início (ex: nomes próprios, termos técnicos).
+    *   **Batch Size:** O número de amostras de áudio processadas em paralelo. Valores maiores podem acelerar a transcrição em GPUs, mas consomem mais memória.
+    *   **Usar VAD (Voice Activity Detection):** Filtra silêncios, melhorando a precisão e removendo trechos sem fala.
+    *   **Usar Diarização (Separação de Falantes):** Identifica e rotula diferentes falantes no áudio. **Requer um Hugging Face Token.**
+    *   **Hugging Face Token:** Campo para inserir seu token de autenticação do Hugging Face, necessário para a diarização.
+    *   **Cfg. Automática:** Analisa o hardware do seu computador e sugere configurações otimizadas para o WhisperX.
 
 ### Fluxo de Trabalho Recomendado:
 
@@ -204,7 +240,7 @@ Se você deseja gravar o "som do sistema" (áudio que está sendo reproduzido no
 4.  **Clique em "Iniciar Gravação"** e grave seus áudios.
 5.  **Clique em "Parar Gravação"** quando terminar.
 6.  **Clique em "Transcrever Áudios da Pasta"** para que o Whisper processe seus arquivos.
-7.  A transcrição completa será salva em um arquivo `transcricao_completa.txt` na sua pasta de destino.
+7.  A transcrição completa será salva em um arquivo `transcricao_completa_whisperx.txt` na sua pasta de destino.
 
 ## Solução de Problemas Comuns
 
