@@ -5,7 +5,7 @@ import soundfile as sf
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QComboBox, QProgressBar, QMessageBox,
                              QLineEdit, QFileDialog, QCheckBox, QTextEdit, QDialog, QFormLayout,
-                             QSlider, QDialogButtonBox, QScrollArea)
+                             QSlider, QDialogButtonBox, QScrollArea, QDoubleSpinBox)
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
 import datetime
 import os
@@ -139,6 +139,7 @@ class AudioRecorderApp(QMainWindow):
             "beam_size": 5,
             "condition_on_previous_text": True,
             "initial_prompt": "",
+            "acceleration_factor": 1.5, # Novo: Fator de aceleração para vídeo
         }
 
         self.process = psutil.Process(os.getpid())
@@ -273,20 +274,44 @@ class AudioRecorderApp(QMainWindow):
             except Exception as e:
                 self.update_transcription_status({"text": f"Erro ao salvar arquivo de transcrição: {e}", "last_time": 0, "total_time": 0})
     def populate_devices(self):
+        self.device_combo.clear()
         self.devices = sd.query_devices()
-        self.input_devices = [(i, d) for i, d in enumerate(self.devices) if d['max_input_channels'] > 0]
-        for i, device in self.input_devices:
-            self.device_combo.addItem(f"({i}) {device['name']}", i)
-        self.device_combo.addItem("Microfone + Som do Sistema (Requer Dispositivo Agregado)")
+        self.input_devices = []
+        found_loopback = False
+
+        # Tenta encontrar o dispositivo de loopback (especialmente para Windows/WASAPI)
+        try:
+            default_output = sd.query_devices(kind='output')
+            # O dispositivo de loopback no WASAPI é um dispositivo de ENTRADA com o mesmo nome do de SAÍDA
+            loopback_device = sd.query_devices(default_output['name'], kind='input')
+            loopback_index = loopback_device['index']
+            
+            # Adiciona a opção de loopback primeiro
+            self.device_combo.addItem(f"Áudio do Sistema ({loopback_device['name']})", loopback_index)
+            self.input_devices.append((loopback_index, loopback_device))
+            found_loopback = True
+            print(f"Dispositivo de loopback encontrado: {loopback_device['name']}")
+        except (ValueError, sd.PortAudioError, KeyError) as e:
+            print(f"Dispositivo de loopback não encontrado. Para gravar o som do sistema no Windows, ative o 'Stereo Mix'. Erro: {e}")
+
+        # Adiciona todos os outros dispositivos de entrada
+        for i, device in enumerate(self.devices):
+            if device['max_input_channels'] > 0:
+                # Evita adicionar o dispositivo de loopback duas vezes
+                if not any(i == d[0] for d in self.input_devices):
+                    self.device_combo.addItem(f"({i}) {device['name']}", i)
+                    self.input_devices.append((i, device))
+
+        if not found_loopback:
+            self.device_combo.addItem("Áudio do Sistema (Não disponível)")
+            last_item_index = self.device_combo.count() - 1
+            self.device_combo.model().item(last_item_index).setEnabled(False)
     def start_recording(self):
-        selected_text = self.device_combo.currentText()
-        if "Microfone + Som" in selected_text:
-            QMessageBox.information(self, "Aviso",
-                                      "Para gravar áudio do microfone e do sistema simultaneamente, "
-                                      "você deve selecionar um dispositivo de áudio agregado (como 'Stereo Mix' no Windows "
-                                      "ou 'BlackHole' no macOS) que já faça essa mixagem.")
-            return
         device_index = self.device_combo.currentData()
+        if device_index is None:
+            QMessageBox.warning(self, "Dispositivo Inválido", "O dispositivo selecionado não está disponível. Por favor, selecione um dispositivo válido.")
+            return
+
         channels = self.devices[device_index]['max_input_channels']
         channels_to_use = min(channels, 2)
         apply_processing = self.processing_checkbox.isChecked()
@@ -448,6 +473,14 @@ class FastWhisperSettingsDialog(QDialog):
         self.initial_prompt_edit = QLineEdit(self.settings.get("initial_prompt", ""))
         self.form_layout.addRow("Prompt Inicial:", self.initial_prompt_edit)
 
+        # --- NOVO: Fator de Aceleração ---
+        self.acceleration_spinbox = QDoubleSpinBox()
+        self.acceleration_spinbox.setRange(1.0, 5.0) # Define o range de aceleração
+        self.acceleration_spinbox.setSingleStep(0.1)
+        self.acceleration_spinbox.setValue(self.settings.get("acceleration_factor", 1.5))
+        self.form_layout.addRow("Fator de Aceleração (Vídeo):", self.acceleration_spinbox)
+        self.form_layout.addRow("", QLabel("Velocidade do áudio extraído de arquivos de vídeo. 1.0 = normal."))
+
         # Botões
         self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         self.button_box.accepted.connect(self.accept)
@@ -469,6 +502,7 @@ class FastWhisperSettingsDialog(QDialog):
         self.condition_checkbox.setChecked(True)
         self.temperature_slider.setValue(0)
         self.initial_prompt_edit.clear()
+        self.acceleration_spinbox.setValue(1.5) # Reseta para o padrão
         
         if gpu_available:
             # GPU VRAM é o fator limitante
@@ -529,6 +563,7 @@ class FastWhisperSettingsDialog(QDialog):
         self.settings["beam_size"] = self.beam_size_slider.value()
         self.settings["condition_on_previous_text"] = self.condition_checkbox.isChecked()
         self.settings["initial_prompt"] = self.initial_prompt_edit.text()
+        self.settings["acceleration_factor"] = self.acceleration_spinbox.value()
         return self.settings
 
 # --- MODIFICAÇÃO PRINCIPAL: Lógica de Transcrição ---
@@ -554,37 +589,79 @@ class TranscriptionThread(QThread):
             model_size = self.whisper_settings.pop("model")
             device = self.whisper_settings.pop("device")
             compute_type = self.whisper_settings.pop("compute_type")
-            # O restante dos parâmetros em whisper_settings será usado na função transcribe()
-            transcribe_params = {
-                "language": self.whisper_settings.get("language"),
-                "temperature": self.whisper_settings.get("temperature"),
-                "best_of": self.whisper_settings.get("best_of"),
-                "beam_size": self.whisper_settings.get("beam_size"),
-                "condition_on_previous_text": self.whisper_settings.get("condition_on_previous_text"),
-                "initial_prompt": self.whisper_settings.get("initial_prompt"),
-                "vad_filter": self.whisper_settings.get("vad_filter"),
-            }
-            
+            acceleration_factor = self.whisper_settings.pop("acceleration_factor", 1.5) # Usa pop para remover
+            transcribe_params = self.whisper_settings # Agora o dicionário está limpo
+
             self.update_status.emit({"text": f"Carregando modelo FastWhisper ({model_size}) no dispositivo {device} ({compute_type})...", "last_time": 0, "total_time": 0})
-            
-            # Carrega o modelo fast-whisper
             model = WhisperModel(model_size, device=device, compute_type=compute_type)
-            
             self.update_status.emit({"text": "Modelo carregado. Procurando arquivos...", "last_time": 0, "total_time": 0})
+
+            # --- NOVA LÓGICA DE BUSCA E PROCESSAMENTO DE ARQUIVOS ---
+            all_files = []
+            # Busca por MP4 e extrai o áudio se necessário
+            mp4_files = sorted(glob.glob(os.path.join(self.audio_folder, "*.mp4")))
+            for mp4_path in mp4_files:
+                base_name = os.path.splitext(os.path.basename(mp4_path))[0]
+                # Nome do arquivo WAV acelerado dinamicamente
+                accelerated_wav_path = os.path.join(self.audio_folder, f"{base_name}_{acceleration_factor}x.wav")
+
+                if not os.path.exists(accelerated_wav_path):
+                    self.update_status.emit({"text": f"Extraindo áudio de {os.path.basename(mp4_path)}...", "last_time": 0, "total_time": 0})
+                    try:
+                        # Comando ffmpeg dinâmico
+                        command = [
+                            'ffmpeg', '-i', mp4_path,
+                            '-vn',  # Ignora o vídeo
+                            '-acodec', 'pcm_s16le', # Codec de áudio WAV
+                            '-ar', '16000', # Amostragem para 16kHz (ideal para Whisper)
+                            '-ac', '1', # Converte para mono
+                            '-filter:a', f'atempo={acceleration_factor}', # Acelera o áudio dinamicamente
+                            accelerated_wav_path
+                        ]
+                        # Usamos subprocess.run para esperar a conclusão do ffmpeg
+                        import subprocess
+                        subprocess.run(command, check=True, capture_output=True, text=True)
+                        self.update_status.emit({"text": f"Áudio extraído e salvo como {os.path.basename(accelerated_wav_path)}", "last_time": 0, "total_time": 0})
+                        all_files.append(accelerated_wav_path)
+                    except subprocess.CalledProcessError as e:
+                        error_msg = f"Erro ao processar {os.path.basename(mp4_path)} com FFmpeg: {e.stderr}"
+                        self.update_status.emit({"text": error_msg, "last_time": 0, "total_time": 0})
+                        # Pula este arquivo se o ffmpeg falhar
+                        continue
+                    except FileNotFoundError:
+                        self.update_status.emit({"text": "Erro: FFmpeg não encontrado. Certifique-se de que está instalado e no PATH do sistema.", "last_time": 0, "total_time": 0})
+                        self.transcription_finished.emit("")
+                        return
+                else:
+                    # Se o arquivo já existe, apenas o adiciona à lista
+                    all_files.append(accelerated_wav_path)
+
+            # Lógica de busca de arquivos WAV (dando preferência aos processados)
+            processed_wavs = sorted(glob.glob(os.path.join(self.audio_folder, "*_processed.wav")))
+            original_wavs = sorted(glob.glob(os.path.join(self.audio_folder, "*.wav")))
             
-            # Lógica de busca de arquivos (inalterada)
-            processed_files = sorted(glob.glob(os.path.join(self.audio_folder, "*_processed.wav")))
-            original_files = sorted(glob.glob(os.path.join(self.audio_folder, "*.wav")))
-            files_to_transcribe = []
-            processed_originals = {f.replace("_processed.wav", ".wav") for f in processed_files}
-            files_to_transcribe.extend(processed_files)
-            files_to_transcribe.extend([f for f in original_files if f not in processed_originals and not f.endswith("_processed.wav")])
+            # Adiciona os WAVs processados
+            all_files.extend(processed_wavs)
             
+            # Adiciona os WAVs originais que não têm uma versão processada ou acelerada
+            processed_originals = {f.replace("_processed.wav", ".wav") for f in processed_wavs}
+            # Compara com o mp4 original para não duplicar
+            accelerated_originals = {f.replace(f"_{acceleration_factor}x.wav", ".mp4") for f in all_files if f.endswith(f"_{acceleration_factor}x.wav")}
+            
+            for wav_file in original_wavs:
+                # Não adiciona se for um arquivo já processado ou um arquivo de áudio acelerado
+                if wav_file not in processed_originals and not wav_file.endswith(".wav"):
+                     all_files.append(wav_file)
+
+            # Remove duplicatas e ordena
+            files_to_transcribe = sorted(list(set(all_files)))
+            # --- FIM DA NOVA LÓGICA ---
+
             if not files_to_transcribe:
-                self.update_status.emit({"text": "Nenhum arquivo .wav encontrado.", "last_time": 0, "total_time": 0})
+                self.update_status.emit({"text": "Nenhum arquivo de áudio (.wav, .mp4) encontrado.", "last_time": 0, "total_time": 0})
                 self.transcription_finished.emit("")
                 return
-            
+
             full_transcription = []
             total_files = len(files_to_transcribe)
             total_processing_time = 0
@@ -593,28 +670,22 @@ class TranscriptionThread(QThread):
                 if not self._is_running:
                     self.update_status.emit({"text": "Transcrição cancelada.", "last_time": 0, "total_time": total_processing_time})
                     break
-                
+
                 status_text = f"Transcrevendo {i+1}/{total_files}: {os.path.basename(filepath)}"
-                
+                self.update_status.emit({"text": status_text, "last_time": last_file_time, "total_time": total_processing_time})
+
                 start_time = time.time()
-                
-                # --- MODIFICAÇÃO: Chamada de transcrição do fast-whisper ---
-                # Retorna um iterador de segmentos, não um dicionário
                 segments, info = model.transcribe(filepath, **transcribe_params)
-                
-                # Junta os segmentos para obter o texto completo
                 transcription_text = "".join(segment.text for segment in segments)
-                
                 end_time = time.time()
 
                 last_file_time = end_time - start_time
                 total_processing_time += last_file_time
-                
-                self.update_status.emit({"text": status_text, "last_time": last_file_time, "total_time": total_processing_time})
-                self.update_transcription.emit(f"--- {os.path.basename(filepath)} ---\n{transcription_text}\n\n")
-                full_transcription.append(transcription_text)
 
-            final_text = "\n".join(full_transcription)
+                self.update_transcription.emit(f"--- {os.path.basename(filepath)} ---\n{transcription_text}\n\n")
+                full_transcription.append(f"--- {os.path.basename(filepath)} ---\n{transcription_text}")
+
+            final_text = "\n\n".join(full_transcription)
             self.transcription_finished.emit(final_text)
             self.update_status.emit({"text": "Transcrição concluída!", "last_time": 0, "total_time": total_processing_time})
 

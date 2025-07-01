@@ -1,254 +1,112 @@
-# VoxSynopsis
-# VoxSynopsis
+# VoxSynopsis (com FastWhisper)
 
-Este é um aplicativo de desktop simples, construído com Python e PyQt5, que permite gravar áudio de alta qualidade, aplicar pós-processamento (redução de ruído e normalização) e transcrever automaticamente os áudios gravados usando o modelo WhisperX (uma versão otimizada do Whisper da OpenAI).
+Este é um aplicativo de desktop simples, construído com Python e PyQt5, que permite gravar áudio de alta qualidade, aplicar pós-processamento e transcrever automaticamente áudios e vídeos usando o modelo **FastWhisper** (uma versão otimizada do Whisper da OpenAI).
 
 ## Funcionalidades
 
 *   **Gravação de Áudio:**
-    *   Grava trechos de áudio de 60 segundos.
+    *   Grava áudio em trechos contínuos de 60 segundos.
     *   Salva automaticamente os trechos em arquivos WAV de alta qualidade (48kHz).
-    *   Permite selecionar a fonte de áudio (microfone, som do sistema, ou ambos via dispositivo agregado).
+    *   Detecta e permite selecionar a fonte de áudio, incluindo microfones e o áudio do sistema (via "Mixagem Estéreo" no Windows).
     *   Exibe tempo total de gravação, tempo restante no trecho e nível de volume em tempo real.
 *   **Pós-processamento de Áudio:**
     *   Opcionalmente, aplica redução de ruído e normalização de volume aos arquivos gravados para otimizar a qualidade para transcrição.
     *   Salva uma versão processada do áudio (`_processed.wav`).
-*   **Transcrição com WhisperX:**
-    *   Transcreve arquivos de áudio (preferencialmente os processados) da pasta de destino.
-    *   Utiliza o modelo WhisperX, que oferece melhor desempenho e recursos adicionais.
-    *   **VAD (Voice Activity Detection):** Opcionalmente filtra silêncios para transcrições mais limpas.
-    *   **Diarização:** Opcionalmente identifica e rotula diferentes falantes no áudio (requer Hugging Face Token).
+*   **Transcrição com FastWhisper:**
+    *   **Processa arquivos de áudio (.wav) e vídeo (.mp4)** da pasta de destino.
+    *   Para arquivos `.mp4`, extrai o áudio, acelera para 1.5x e salva como `.wav` antes de transcrever.
+    *   Utiliza o modelo **FastWhisper**, que oferece desempenho significativamente superior (até 4x mais rápido) e menor uso de memória.
+    *   **VAD (Voice Activity Detection):** Filtra silêncios do áudio para transcrições mais rápidas e limpas.
     *   Exibe o progresso da transcrição (arquivo atual, tempo do último arquivo, tempo total).
-    *   Compila todas as transcrições em um único arquivo de texto (`transcricao_completa_whisperx.txt`).
+    *   Compila todas as transcrições em um único arquivo de texto (`transcricao_completa.txt`).
 *   **Monitoramento de Recursos:**
-    *   Exibe o uso de CPU e memória da aplicação em tempo real através de barras de progresso.
+    *   Exibe o uso de CPU e memória da aplicação em tempo real.
 
 ## Pré-requisitos
 
-Antes de começar, você precisará ter algumas ferramentas instaladas no seu computador. Não se preocupe, vamos explicar passo a passo.
+Antes de começar, você precisará ter o Python e o FFmpeg instalados no seu computador.
 
 ### 1. Python
 
-Python é a linguagem de programação que usamos para criar este aplicativo.
-
-*   **Para Windows (Recomendado):**
-    1.  Acesse o site oficial do Python: [https://www.python.org/downloads/](https://www.python.org/downloads/)
-    2.  Baixe a versão mais recente do Python 3 (ex: Python 3.10.x ou superior). Procure por "Windows installer (64-bit)".
-    3.  Execute o instalador. **MUITO IMPORTANTE:** Na primeira tela do instalador, marque a caixa **"Add Python.exe to PATH"** (Adicionar Python.exe ao PATH), conforme a imagem abaixo (se disponível). Isso é crucial para que você possa usar o Python diretamente do Prompt de Comando ou PowerShell.
-        ![Adicionar Python ao PATH](https://i.imgur.com/example_python_path.png) <!-- Substitua por uma imagem real se possível -->
-    4.  Prossiga com a instalação padrão, clicando em "Install Now".
-    5.  Para verificar se o Python foi instalado corretamente, abra o "Prompt de Comando" (pesquise por `cmd` no menu Iniciar) ou o "PowerShell" e digite:
-        ```powershell
-        python --version
-        ```
-        Você deverá ver a versão do Python instalada (ex: `Python 3.10.5`). Se aparecer um erro, tente fechar e reabrir o terminal.
-
-*   **Para macOS:**
-    1.  Acesse o site oficial do Python: [https://www.python.org/downloads/](https://www.python.org/downloads/)
-    2.  Baixe a versão mais recente do Python 3 (ex: Python 3.10.x ou superior). Procure por "macOS 64-bit installer".
-    3.  Execute o instalador e siga as instruções.
-    4.  Para verificar, abra o "Terminal" (você pode encontrá-lo em Aplicativos > Utilitários) e digite:
-        ```bash
-        python3 --version
-        ```
-        Você deverá ver a versão do Python instalada.
-
-*   **Para Linux (Ubuntu/Debian):**
-    1.  A maioria das distribuições Linux já vem com Python pré-instalado. Para garantir que você tenha a versão mais recente e as ferramentas necessárias, abra o terminal e digite:
-        ```bash
-        sudo apt update
-        sudo apt install python3 python3-pip
-        ```
-    2.  Para verificar:
-        ```bash
-        python3 --version
-        ```
+*   **Instalação:**
+    1.  Acesse [python.org/downloads](https://www.python.org/downloads/) e baixe a versão mais recente (3.10+).
+    2.  **MUITO IMPORTANTE:** No instalador do Windows, marque a caixa **"Add Python.exe to PATH"**.
+    3.  Para verificar a instalação, abra um novo terminal (Prompt de Comando, PowerShell ou Terminal) e digite `python --version`.
 
 ### 2. FFmpeg
 
-O FFmpeg é uma ferramenta essencial para o Whisper processar arquivos de áudio. Ele precisa estar instalado e acessível pelo sistema.
+O FFmpeg é essencial para processar arquivos de áudio e vídeo.
 
-*   **Para Windows (Recomendado: Chocolatey - o jeito mais fácil):**
-    1.  **Instale o Chocolatey (se ainda não tiver):** O Chocolatey é um gerenciador de pacotes para Windows que facilita a instalação de programas. Abra o "Prompt de Comando" ou "PowerShell" **como administrador** (clique com o botão direito e selecione "Executar como administrador") e siga as instruções detalhadas em [https://chocolatey.org/install](https://chocolatey.org/install).
-    2.  **Instale o FFmpeg com Chocolatey:** Após instalar o Chocolatey, no mesmo terminal **como administrador**, digite:
-        ```powershell
-        choco install ffmpeg
-        ```
-    3.  Feche e reabra o terminal (Prompt de Comando ou PowerShell) para que as mudanças tenham efeito.
-    4.  Para verificar se o FFmpeg foi instalado corretamente, digite:
-        ```powershell
-        ffmpeg -version
-        ```
-        Você deverá ver informações sobre a versão do FFmpeg.
+*   **Instalação no Windows (Recomendado: Chocolatey):**
+    1.  Instale o gerenciador de pacotes **Chocolatey** seguindo as instruções em [chocolatey.org/install](https://chocolatey.org/install).
+    2.  Abra o PowerShell **como administrador** e execute: `choco install ffmpeg`
+*   **Instalação no macOS (Homebrew):**
+    1.  Instale o **Homebrew** a partir de [brew.sh](https://brew.sh/).
+    2.  No terminal, execute: `brew install ffmpeg`
+*   **Instalação no Linux (Ubuntu/Debian):**
+    1.  No terminal, execute: `sudo apt update && sudo apt install ffmpeg`
 
-*   **Para Windows (Manual - para usuários avançados):**
-    1.  Acesse [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html) e clique no ícone do Windows.
-    2.  Escolha uma das opções de download (ex: `gyan.dev` ou `BtbN`). Baixe o arquivo `.zip` da versão `release` (lançamento).
-    3.  Descompacte o arquivo `.zip` em um local de sua preferência e de fácil acesso (ex: `C:\ffmpeg`). Certifique-se de que a pasta `bin` (que contém `ffmpeg.exe`) esteja dentro do diretório que você descompactou.
-    4.  Você precisará adicionar o caminho completo para a pasta `bin` do FFmpeg às variáveis de ambiente do sistema (especificamente à variável `Path`). Este passo é um pouco mais complexo e envolve:
-        *   Pesquisar por "Editar as variáveis de ambiente do sistema" no menu Iniciar.
-        *   Clicar em "Variáveis de Ambiente...".
-        *   Na seção "Variáveis do sistema", encontrar e selecionar a variável `Path` e clicar em "Editar...".
-        *   Clicar em "Novo" e adicionar o caminho completo para a pasta `bin` do FFmpeg (ex: `C:\ffmpeg\bin`).
-        *   Clique em "OK" em todas as janelas para salvar as alterações.
-        *   Feche e reabra o terminal para que as mudanças tenham efeito.
-    5.  Para verificar, digite no terminal:
-        ```powershell
-        ffmpeg -version
-        ```
-
-*   **Para macOS (Homebrew):**
-    1.  **Instale o Homebrew (se ainda não tiver):** O Homebrew é um gerenciador de pacotes para macOS. Abra o "Terminal" e siga as instruções em [https://brew.sh/](https://brew.sh/).
-    2.  **Instale o FFmpeg com Homebrew:** No terminal, digite:
-        ```bash
-        brew install ffmpeg
-        ```
-    3.  Para verificar:
-        ```bash
-        ffmpeg -version
-        ```
-
-*   **Para Linux (Ubuntu/Debian):**
-    1.  Abra o terminal e digite:
-        ```bash
-        sudo apt update
-        sudo apt install ffmpeg
-        ```
-    2.  Para verificar:
-        ```bash
-        ffmpeg -version
-        ```
+Para verificar a instalação do FFmpeg, abra um novo terminal e digite `ffmpeg -version`.
 
 ## Instalação do Aplicativo
 
 ### 1. Baixe o Código
 
-Baixe o arquivo `vox_synopsis.py` para uma pasta em seu computador. Por exemplo, você pode criar uma pasta chamada `IA40` em `C:\Users\SeuUsuario\Documentos\IA40`.
+Baixe o arquivo `vox_synopsis_fast_whisper.py` para uma pasta em seu computador.
 
 ### 2. Instale as Dependências do Python
 
-Abra o "Prompt de Comando" ou "PowerShell" e navegue até a pasta onde você salvou o arquivo `vox_synopsis.py`. Por exemplo, se você salvou em `C:\Users\SeuUsuario\Documentos\IA40`:
+Abra um terminal, navegue até a pasta onde você salvou o arquivo e instale as bibliotecas necessárias com o seguinte comando:
 
 ```powershell
-cd C:\Users\SeuUsuario\Documentos\IA40
+pip install PyQt5 sounddevice numpy soundfile noisereduce scipy faster-whisper psutil torch
 ```
 
-Agora, instale todas as bibliotecas Python necessárias. Digite o seguinte comando e pressione Enter:
-
-```powershell
-pip install PyQt5 sounddevice numpy soundfile noisereduce scipy whisperx psutil torch torchaudio huggingface_hub
-```
-
-*   **`PyQt5`**: Para a interface gráfica do aplicativo.
-*   **`sounddevice`**: Para gravar e gerenciar os dispositivos de áudio.
-*   **`numpy`**: Para manipulação eficiente de dados numéricos (usado pelo `sounddevice` e `noisereduce`).
-*   **`soundfile`**: Para ler e escrever arquivos de áudio (WAV).
-*   **`noisereduce`**: Para aplicar a redução de ruído no áudio.
-*   **`scipy`**: Uma dependência do `noisereduce` para computação científica.
-*   **`openai-whisper`**: A biblioteca oficial do Whisper para transcrição de áudio.
-*   **`psutil`**: Para monitorar o uso de CPU e memória do aplicativo.
-*   **`whisperx`**: A biblioteca otimizada para transcrição de áudio, incluindo VAD e diarização.
-*   **`huggingface_hub`**: Necessário para autenticação com o Hugging Face, especialmente para baixar modelos de diarização.
-
-**Importante sobre Diarização:** Para usar a funcionalidade de diarização (separação de falantes) do `whisperx`, você precisará de um token de autenticação do Hugging Face. Você pode obter um gratuitamente em [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens). Este token deve ser inserido nas configurações do aplicativo. Sem ele, a diarização não funcionará.
-
-## Configuração da Gravação de Áudio do Sistema (Opcional)
-
-Se você deseja gravar o "som do sistema" (áudio que está sendo reproduzido no seu computador), pode ser necessário configurar um dispositivo de áudio "loopback" ou "mixagem estéreo".
-
-*   **No Windows (Mixagem Estéreo / Stereo Mix):**
-    1.  Clique com o botão direito no ícone de volume na barra de tarefas (canto inferior direito da tela).
-    2.  Selecione **"Sons"** (ou "Sound settings" e depois "Sound Control Panel").
-    3.  Vá para a aba **"Gravação"**.
-    4.  Clique com o botão direito em qualquer área vazia da lista de dispositivos e marque **"Mostrar Dispositivos Desabilitados"** e **"Mostrar Dispositivos Desconectados"**.
-    5.  Um dispositivo chamado **"Mixagem Estéreo"** (ou "Stereo Mix") deve aparecer.
-    6.  Clique com o botão direito sobre ele e selecione **"Habilitar"**.
-    7.  Você pode defini-lo como dispositivo padrão se quiser que seja a fonte principal.
-    8.  Após habilitar, ele deverá aparecer na lista de "Fonte de Áudio" no aplicativo.
-
-*   **No macOS (BlackHole):**
-    O macOS não possui um recurso nativo para isso. Você precisará de um software de terceiros como o [**BlackHole**](https://github.com/ExistentialAudio/BlackHole) para criar um dispositivo de áudio virtual que roteia o som do sistema para uma entrada. Após a instalação do BlackHole, ele aparecerá como um dispositivo de entrada na lista de "Fonte de Áudio" do nosso aplicativo.
-
-*   **No Linux:**
-    Geralmente, o PulseAudio ou o PipeWire já fornecem um dispositivo "Monitor" para a saída de áudio, que funciona como uma fonte de gravação do som do sistema. Ele deve aparecer na lista de dispositivos automaticamente.
+*   **`PyQt5`**: Para a interface gráfica.
+*   **`sounddevice`**: Para gravar e gerenciar áudio.
+*   **`numpy`, `scipy`**: Para manipulação de dados de áudio e redução de ruído.
+*   **`soundfile`**: Para ler e escrever arquivos de áudio.
+*   **`noisereduce`**: Para a função de pós-processamento.
+*   **`faster-whisper`**: A biblioteca otimizada para transcrição de áudio.
+*   **`psutil`**: Para monitorar o uso de CPU e memória.
+*   **`torch`**: Dependência do FastWhisper. A instalação de uma versão compatível com CUDA/GPU é recomendada para melhor desempenho.
 
 ## Como Usar o Aplicativo
 
-1.  Abra o "Prompt de Comando" ou "PowerShell" e navegue até a pasta onde você salvou o arquivo `vox_synopsis.py`.
+1.  Abra um terminal e navegue até a pasta onde o script foi salvo.
+2.  Execute o aplicativo com o comando:
     ```powershell
-    cd C:\Users\SeuUsuario\Documentos\IA40
+    python vox_synopsis_fast_whisper.py
     ```
-2.  Execute o aplicativo digitando:
-    ```powershell
-    python vox_synopsis.py
-    ```
-    A janela do aplicativo será aberta.
 
 ### Interface do Aplicativo:
 
-*   **Fonte de Áudio:** Use a lista suspensa para selecionar o microfone, "Mixagem Estéreo" (Windows), "BlackHole" (macOS) ou outro dispositivo de entrada de áudio disponível.
-*   **Salvar em:** Este campo mostra a pasta onde os arquivos de áudio serão salvos. Por padrão, será criada uma pasta `gravacoes` no mesmo local do script.
-    *   **Botão "Procurar..."**: Clique aqui para escolher uma pasta diferente para salvar suas gravações.
-*   **Aplicar Pós-processamento (Redução de Ruído e Normalização):** Marque esta caixa para que o aplicativo aplique automaticamente técnicas de redução de ruído e normalização de volume aos seus áudios após a gravação. Isso é **altamente recomendado** para obter melhores resultados com o Whisper.
-*   **Iniciar Gravação:** Clique para começar a gravar. O aplicativo gravará trechos de 60 segundos e os salvará automaticamente.
-*   **Parar Gravação:** Clique para interromper a gravação.
-*   **Transcrever Áudios da Pasta:** Clique neste botão para iniciar o processo de transcrição. O aplicativo irá procurar por arquivos `.wav` na pasta de destino (dando preferência aos arquivos `_processed.wav` se existirem) e transcrevê-los um por um.
-*   **Status:** Mostra o estado atual do aplicativo (Parado, Gravando, Transcrevendo, etc.).
-*   **Tempo Total Gravado:** Exibe o tempo total de áudio que você já gravou.
-*   **Tempo Restante no Trecho:** Mostra quanto tempo falta para o trecho de 60 segundos atual ser concluído.
-*   **Nível de Volume:** Uma barra de progresso que indica o volume do áudio sendo captado.
-*   **Transcrição:** Uma área de texto onde as transcrições aparecerão à medida que forem concluídas.
-*   **Tempo do Último Arquivo:** Mostra quanto tempo o Whisper levou para transcrever o último arquivo.
-*   **Tempo Total de Transcrição:** Acumula o tempo total gasto na transcrição de todos os arquivos.
-*   **CPU / Memória:** Barras de progresso que mostram o uso de CPU e memória do aplicativo em tempo real.
-*   **Cfg.Whisper:** Abre uma janela de configurações avançadas para o modelo WhisperX, onde você pode ajustar:
-    *   **Modelo:** Tamanho do modelo (tiny, base, small, medium, large). Modelos maiores são mais precisos, mas exigem mais recursos.
-    *   **Dispositivo:** Onde o modelo será executado (CPU ou CUDA/GPU). CUDA é muito mais rápido se você tiver uma placa NVIDIA compatível.
-    *   **Tipo de Computação:** Define a precisão dos cálculos (float16 para GPUs mais recentes, int8 para CPUs ou GPUs mais antigas). Afeta o desempenho e o uso de memória.
-    *   **Idioma:** O idioma do áudio a ser transcrito (português, inglês, ou detecção automática).
-    *   **Temperatura:** Controla a "criatividade" da transcrição. Valores mais baixos (próximos de 0) tornam a transcrição mais determinística.
-    *   **Best Of:** Número de candidatos a considerar durante a decodificação. Valores maiores podem aumentar a precisão.
-    *   **Beam Size:** Número de "caminhos" de transcrição a explorar. Valores maiores aumentam precisão e uso de recursos.
-    *   **Condicionar no texto anterior:** Usa o texto já transcrito para guiar a transcrição do próximo segmento, útil para manter a coerência em áudios longos.
-    *   **Prompt Inicial:** Um texto que pode ser fornecido ao modelo para guiar a transcrição desde o início (ex: nomes próprios, termos técnicos).
-    *   **Batch Size:** O número de amostras de áudio processadas em paralelo. Valores maiores podem acelerar a transcrição em GPUs, mas consomem mais memória.
-    *   **Usar VAD (Voice Activity Detection):** Filtra silêncios, melhorando a precisão e removendo trechos sem fala.
-    *   **Usar Diarização (Separação de Falantes):** Identifica e rotula diferentes falantes no áudio. **Requer um Hugging Face Token.**
-    *   **Hugging Face Token:** Campo para inserir seu token de autenticação do Hugging Face, necessário para a diarização.
-    *   **Cfg. Automática:** Analisa o hardware do seu computador e sugere configurações otimizadas para o WhisperX.
-*   **Cfg.Whisper:** Abre uma janela de configurações avançadas para o modelo WhisperX, onde você pode ajustar:
-    *   **Modelo:** Tamanho do modelo (tiny, base, small, medium, large). Modelos maiores são mais precisos, mas exigem mais recursos.
-    *   **Dispositivo:** Onde o modelo será executado (CPU ou CUDA/GPU). CUDA é muito mais rápido se você tiver uma placa NVIDIA compatível.
-    *   **Tipo de Computação:** Define a precisão dos cálculos (float16 para GPUs mais recentes, int8 para CPUs ou GPUs mais antigas). Afeta o desempenho e o uso de memória.
-    *   **Idioma:** O idioma do áudio a ser transcrito (português, inglês, ou detecção automática).
-    *   **Temperatura:** Controla a "criatividade" da transcrição. Valores mais baixos (próximos de 0) tornam a transcrição mais determinística.
-    *   **Best Of:** Número de candidatos a considerar durante a decodificação. Valores maiores podem aumentar a precisão.
-    *   **Beam Size:** Número de "caminhos" de transcrição a explorar. Valores maiores aumentam precisão e uso de recursos.
-    *   **Condicionar no texto anterior:** Usa o texto já transcrito para guiar a transcrição do próximo segmento, útil para manter a coerência em áudios longos.
-    *   **Prompt Inicial:** Um texto que pode ser fornecido ao modelo para guiar a transcrição desde o início (ex: nomes próprios, termos técnicos).
-    *   **Batch Size:** O número de amostras de áudio processadas em paralelo. Valores maiores podem acelerar a transcrição em GPUs, mas consomem mais memória.
-    *   **Usar VAD (Voice Activity Detection):** Filtra silêncios, melhorando a precisão e removendo trechos sem fala.
-    *   **Usar Diarização (Separação de Falantes):** Identifica e rotula diferentes falantes no áudio. **Requer um Hugging Face Token.**
-    *   **Hugging Face Token:** Campo para inserir seu token de autenticação do Hugging Face, necessário para a diarização.
-    *   **Cfg. Automática:** Analisa o hardware do seu computador e sugere configurações otimizadas para o WhisperX.
+*   **Dispositivo de Entrada:** Selecione o microfone ou o dispositivo de áudio do sistema (se disponível).
+*   **Pasta de Saída:** Escolha onde salvar as gravações.
+*   **Aplicar pós-processamento:** Altamente recomendado para melhorar a qualidade da transcrição.
+*   **Iniciar/Parar Gravação:** Controla o processo de gravação.
+*   **Transcrever Áudio:** Inicia a transcrição. O programa buscará por arquivos `.wav` e `.mp4` na pasta de destino.
+*   **Cfg.FastWhisper:** Abre uma janela de configurações avançadas para o modelo FastWhisper, onde você pode ajustar:
+    *   **Modelo:** Tamanho do modelo (ex: `medium`, `large-v3`).
+    *   **Dispositivo:** `cpu` ou `cuda` (GPU).
+    *   **Tipo de Computação:** Precisão dos cálculos (`int8`, `float16`, etc.). Afeta velocidade e uso de memória.
+    *   **Usar Filtro VAD:** Detecta e pula partes sem fala no áudio.
+    *   Outros parâmetros como idioma, temperatura, beam size, etc.
+    *   **Cfg. Automática:** Analisa seu hardware e sugere configurações otimizadas.
 
 ### Fluxo de Trabalho Recomendado:
 
-1.  **Selecione sua Fonte de Áudio.**
-2.  **Escolha a Pasta de Destino** (ou use a padrão).
-3.  **Mantenha "Aplicar Pós-processamento" marcado.**
-4.  **Clique em "Iniciar Gravação"** e grave seus áudios.
-5.  **Clique em "Parar Gravação"** quando terminar.
-6.  **Clique em "Transcrever Áudios da Pasta"** para que o Whisper processe seus arquivos.
-7.  A transcrição completa será salva em um arquivo `transcricao_completa_whisperx.txt` na sua pasta de destino.
+1.  Selecione seu dispositivo de entrada.
+2.  Mantenha "Aplicar Pós-processamento" marcado.
+3.  Clique em **"Iniciar Gravação"**.
+4.  Quando terminar, clique em **"Parar Gravação"**.
+5.  Coloque quaisquer arquivos de vídeo `.mp4` que deseje transcrever na mesma pasta de gravação.
+6.  Clique em **"Transcrever Áudio"**.
+7.  A transcrição completa será salva em `transcricao_completa.txt` na pasta de destino.
 
 ## Solução de Problemas Comuns
 
-*   **"FFmpeg não encontrado" ou erro ao transcrever:** Certifique-se de que o FFmpeg está instalado corretamente e que seu caminho está nas variáveis de ambiente do sistema (se a instalação foi manual). Feche e reabra o Prompt de Comando/PowerShell após a instalação do FFmpeg.
-*   **Dispositivo de áudio não aparece na lista:** Verifique as configurações de som do seu sistema operacional (veja a seção "Configuração da Gravação de Áudio do Sistema").
-*   **Desempenho lento na transcrição:** O modelo `medium` do Whisper pode ser intensivo em CPU. Transcrições de áudios muito longos levarão tempo. Certifique-se de que seu computador atende aos requisitos mínimos para o Whisper.
-*   **Erros de permissão ao salvar arquivos:** Verifique se a pasta de destino selecionada tem permissões de escrita para o usuário atual.
+*   **"FFmpeg não encontrado"**: Certifique-se de que o FFmpeg foi instalado e está acessível no PATH do sistema. Feche e reabra o terminal após a instalação.
+*   **"Áudio do Sistema" não aparece:** No Windows, você pode precisar habilitar a "Mixagem Estéreo" (Stereo Mix) manualmente nas configurações de som do painel de controle.
+*   **Desempenho lento na transcrição:** A transcrição é uma tarefa intensiva. Para melhor desempenho, use uma GPU NVIDIA (selecionando o dispositivo `cuda` e um `compute_type` como `float16`) e ative o filtro VAD.
 
----
-
-Esperamos que este aplicativo seja útil para suas necessidades de gravação e transcrição!
