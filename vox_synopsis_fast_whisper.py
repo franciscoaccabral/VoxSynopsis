@@ -1,36 +1,44 @@
 import sys
-import sounddevice as sd
-import numpy as np
-import soundfile as sf
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                             QPushButton, QLabel, QComboBox, QProgressBar, QMessageBox,
-                             QLineEdit, QFileDialog, QCheckBox, QTextEdit, QDialog, QFormLayout,
-                             QSlider, QDialogButtonBox, QScrollArea, QDoubleSpinBox)
-from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
-import datetime
 import os
-import noisereduce as nr
-# --- MODIFICAÇÃO: Importar fast_whisper em vez de whisper ---
-from faster_whisper import WhisperModel
-import glob
+import datetime
 import time
+import glob
 import psutil
+import numpy as np
+import sounddevice as sd
+import soundfile as sf
+import noisereduce as nr
+from faster_whisper import WhisperModel
+
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QMessageBox, QFileDialog, 
+                             QDialog, QDialogButtonBox, QSlider, QComboBox, QLineEdit, 
+                             QCheckBox, QDoubleSpinBox, QLabel, QFormLayout, QVBoxLayout, 
+                             QPushButton, QScrollArea, QWidget) # Adicionado QPushButton, QScrollArea, QWidget
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
+
+# Importa a classe da UI a partir do arquivo separado
+from ui_vox_synopsis import Ui_MainWindow
+
 try:
     import torch
 except ImportError:
     torch = None
 
-# --- Configurações de Áudio ---
-SAMPLE_RATE = 48000  # Qualidade de estúdio (fast-whisper internamente reamostra para 16kHz)
-CHUNK_DURATION_SECONDS = 60 # Duração de cada arquivo de áudio
-OUTPUT_DIR = "gravacoes" # Pasta para salvar os arquivos
+# --- Configurações Globais ---
+SAMPLE_RATE = 48000
+CHUNK_DURATION_SECONDS = 60
+OUTPUT_DIR = "gravacoes"
 
+# --- Função para carregar o stylesheet ---
+def load_stylesheet(app):
+    try:
+        with open("style.qss", "r") as f:
+            app.setStyleSheet(f.read())
+    except FileNotFoundError:
+        print("Arquivo style.qss não encontrado. Usando estilo padrão.")
+
+# --- Threads de Trabalho (sem alteração) ---
 class RecordingThread(QThread):
-    """
-    Thread para lidar com a gravação de áudio em segundo plano,
-    evitando que a interface gráfica congele.
-    (Nenhuma alteração nesta classe)
-    """
     status_update = pyqtSignal(dict)
     recording_error = pyqtSignal(str)
 
@@ -111,466 +119,7 @@ class RecordingThread(QThread):
         self._is_running = False
         print("Sinal de parada recebido.")
 
-
-class AudioRecorderApp(QMainWindow):
-    """
-    Classe principal da aplicação GUI.
-    """
-    def __init__(self):
-        super().__init__()
-        # --- MODIFICAÇÃO: Título da janela ---
-        self.setWindowTitle("VoxSynopsis (FastWhisper)")
-        self.setGeometry(100, 100, 450, 300)
-
-        self.output_path = os.path.join(os.getcwd(), OUTPUT_DIR)
-        self.ensure_output_path_exists()
-        self.recording_thread = None
-        self.transcription_thread = None
-
-        # --- MODIFICAÇÃO: Configurações padrão para fast-whisper ---
-        self.whisper_settings = {
-            "model": "medium",
-            "language": "pt",
-            "device": "cpu",
-            "compute_type": "int8", # int8 para CPU, int8_float16 ou float16 para GPU
-            "vad_filter": True, # Voice Activity Detection para pular silêncio (grande ganho de performance)
-            "temperature": 0.0,
-            "best_of": 5,
-            "beam_size": 5,
-            "condition_on_previous_text": True,
-            "initial_prompt": "",
-            "acceleration_factor": 1.5, # Novo: Fator de aceleração para vídeo
-        }
-
-        self.process = psutil.Process(os.getpid())
-        self.resource_timer = QTimer(self)
-        self.resource_timer.setInterval(1000)
-        self.resource_timer.timeout.connect(self.update_resource_usage)
-        self.resource_timer.start()
-        self.setup_ui()
-
-    # --- NENHUMA ALTERAÇÃO ATÉ open_settings_dialog ---
-    # As funções setup_ui, ensure_output_path_exists, browse_folder, start_transcription, etc.
-    # permanecem as mesmas, pois a lógica da GUI não muda.
-    def setup_ui(self):
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        main_layout = QVBoxLayout(central_widget)
-        device_layout = QHBoxLayout()
-        device_layout.addWidget(QLabel("Dispositivo de Entrada:"))
-        self.device_combo = QComboBox()
-        device_layout.addWidget(self.device_combo)
-        main_layout.addLayout(device_layout)
-        path_layout = QHBoxLayout()
-        path_layout.addWidget(QLabel("Pasta de Saída:"))
-        self.path_textbox = QLineEdit(self.output_path)
-        path_layout.addWidget(self.path_textbox)
-        self.browse_button = QPushButton("Procurar")
-        self.browse_button.clicked.connect(self.browse_folder)
-        path_layout.addWidget(self.browse_button)
-        main_layout.addLayout(path_layout)
-        self.processing_checkbox = QCheckBox("Aplicar pós-processamento (redução de ruído)")
-        self.processing_checkbox.setChecked(True)
-        main_layout.addWidget(self.processing_checkbox)
-        button_layout = QHBoxLayout()
-        self.start_button = QPushButton("Iniciar Gravação")
-        self.start_button.clicked.connect(self.start_recording)
-        button_layout.addWidget(self.start_button)
-        self.stop_button = QPushButton("Parar Gravação")
-        self.stop_button.clicked.connect(self.stop_recording)
-        self.stop_button.setEnabled(False)
-        button_layout.addWidget(self.stop_button)
-        self.transcribe_button = QPushButton("Transcrever Áudio")
-        self.transcribe_button.clicked.connect(self.start_transcription)
-        self.settings_button = QPushButton("Cfg.FastWhisper")
-        self.settings_button.clicked.connect(self.open_settings_dialog)
-        button_layout.addWidget(self.transcribe_button)
-        button_layout.addWidget(self.settings_button)
-        main_layout.addLayout(button_layout)
-        self.status_label = QLabel("Status: Parado")
-        main_layout.addWidget(self.status_label)
-        self.total_time_label = QLabel("Tempo Total Gravado: 00:00:00")
-        main_layout.addWidget(self.total_time_label)
-        self.chunk_time_label = QLabel("Tempo Restante no Trecho: 60.0s")
-        main_layout.addWidget(self.chunk_time_label)
-        volume_layout = QHBoxLayout()
-        volume_layout.addWidget(QLabel("Volume:"))
-        self.volume_bar = QProgressBar()
-        self.volume_bar.setRange(0, 100)
-        volume_layout.addWidget(self.volume_bar)
-        main_layout.addLayout(volume_layout)
-        resource_layout = QHBoxLayout()
-        cpu_layout = QVBoxLayout()
-        cpu_layout.addWidget(QLabel("CPU:"))
-        self.cpu_bar = QProgressBar()
-        self.cpu_bar.setRange(0, 100)
-        cpu_layout.addWidget(self.cpu_bar)
-        resource_layout.addLayout(cpu_layout)
-        mem_layout = QVBoxLayout()
-        mem_layout.addWidget(QLabel("Memória:"))
-        self.mem_bar = QProgressBar()
-        self.mem_bar.setRange(0, 100)
-        mem_layout.addWidget(self.mem_bar)
-        resource_layout.addLayout(mem_layout)
-        main_layout.addLayout(resource_layout)
-        self.transcription_status_label = QLabel("Status da Transcrição: --")
-        main_layout.addWidget(self.transcription_status_label)
-        self.last_file_time_label = QLabel("Tempo do Último Arquivo: --")
-        main_layout.addWidget(self.last_file_time_label)
-        self.total_transcription_time_label = QLabel("Tempo Total de Transcrição: --")
-        main_layout.addWidget(self.total_transcription_time_label)
-        self.transcription_area = QTextEdit()
-        self.transcription_area.setMaximumHeight(150)
-        main_layout.addWidget(self.transcription_area)
-        self.populate_devices()
-    def ensure_output_path_exists(self):
-        try:
-            os.makedirs(self.output_path, exist_ok=True)
-        except OSError as e:
-            QMessageBox.critical(self, "Erro de Diretório", f"Não foi possível criar a pasta:\n{self.output_path}\n\n{e}")
-    def browse_folder(self):
-        directory = QFileDialog.getExistingDirectory(self, "Selecionar Pasta", self.output_path)
-        if directory:
-            self.output_path = directory
-            self.path_textbox.setText(self.output_path)
-            self.ensure_output_path_exists()
-    def start_transcription(self):
-        self.transcription_area.clear()
-        self.transcribe_button.setEnabled(False)
-        self.start_button.setEnabled(False)
-        self.stop_button.setEnabled(False)
-        self.browse_button.setEnabled(False)
-        self.transcription_thread = TranscriptionThread(self.output_path, self.whisper_settings)
-        self.transcription_thread.update_status.connect(self.update_transcription_status)
-        self.transcription_thread.update_transcription.connect(self.append_transcription)
-        self.transcription_thread.transcription_finished.connect(self.on_transcription_finished)
-        self.transcription_thread.start()
-    def update_transcription_status(self, status_dict):
-        self.transcription_status_label.setText(status_dict.get("text", ""))
-        last_time = status_dict.get("last_time", 0)
-        if last_time > 0:
-            self.last_file_time_label.setText(f"Tempo do Último Arquivo: {last_time:.2f} segundos")
-        else:
-            self.last_file_time_label.setText("Tempo do Último Arquivo: --")
-        total_time = status_dict.get("total_time", 0)
-        if total_time > 0:
-            self.total_transcription_time_label.setText(f"Tempo Total de Transcrição: {total_time:.2f} segundos")
-        else:
-            self.total_transcription_time_label.setText("Tempo Total de Transcrição: --")
-    def append_transcription(self, text):
-        self.transcription_area.append(text)
-    def on_transcription_finished(self, full_text):
-        self.transcribe_button.setEnabled(True)
-        self.start_button.setEnabled(True)
-        self.browse_button.setEnabled(True)
-        if not self.recording_thread or not self.recording_thread.isRunning():
-            self.stop_button.setEnabled(False)
-        if full_text:
-            save_path = os.path.join(self.output_path, "transcricao_completa.txt")
-            try:
-                with open(save_path, 'w', encoding='utf-8') as f:
-                    f.write(full_text)
-                self.update_transcription_status({"text": f"Transcrição concluída! Resultado salvo em {save_path}", "last_time": 0, "total_time": 0})
-            except Exception as e:
-                self.update_transcription_status({"text": f"Erro ao salvar arquivo de transcrição: {e}", "last_time": 0, "total_time": 0})
-    def populate_devices(self):
-        self.device_combo.clear()
-        self.devices = sd.query_devices()
-        self.input_devices = []
-        found_loopback = False
-
-        # Tenta encontrar o dispositivo de loopback (especialmente para Windows/WASAPI)
-        try:
-            default_output = sd.query_devices(kind='output')
-            # O dispositivo de loopback no WASAPI é um dispositivo de ENTRADA com o mesmo nome do de SAÍDA
-            loopback_device = sd.query_devices(default_output['name'], kind='input')
-            loopback_index = loopback_device['index']
-            
-            # Adiciona a opção de loopback primeiro
-            self.device_combo.addItem(f"Áudio do Sistema ({loopback_device['name']})", loopback_index)
-            self.input_devices.append((loopback_index, loopback_device))
-            found_loopback = True
-            print(f"Dispositivo de loopback encontrado: {loopback_device['name']}")
-        except (ValueError, sd.PortAudioError, KeyError) as e:
-            print(f"Dispositivo de loopback não encontrado. Para gravar o som do sistema no Windows, ative o 'Stereo Mix'. Erro: {e}")
-
-        # Adiciona todos os outros dispositivos de entrada
-        for i, device in enumerate(self.devices):
-            if device['max_input_channels'] > 0:
-                # Evita adicionar o dispositivo de loopback duas vezes
-                if not any(i == d[0] for d in self.input_devices):
-                    self.device_combo.addItem(f"({i}) {device['name']}", i)
-                    self.input_devices.append((i, device))
-
-        if not found_loopback:
-            self.device_combo.addItem("Áudio do Sistema (Não disponível)")
-            last_item_index = self.device_combo.count() - 1
-            self.device_combo.model().item(last_item_index).setEnabled(False)
-    def start_recording(self):
-        device_index = self.device_combo.currentData()
-        if device_index is None:
-            QMessageBox.warning(self, "Dispositivo Inválido", "O dispositivo selecionado não está disponível. Por favor, selecione um dispositivo válido.")
-            return
-
-        channels = self.devices[device_index]['max_input_channels']
-        channels_to_use = min(channels, 2)
-        apply_processing = self.processing_checkbox.isChecked()
-        self.recording_thread = RecordingThread(device_index, channels_to_use, self.output_path, apply_processing)
-        self.recording_thread.status_update.connect(self.update_status)
-        self.recording_thread.recording_error.connect(self.show_error_message)
-        self.recording_thread.finished.connect(self.on_recording_finished)
-        self.recording_thread.start()
-        self.start_button.setEnabled(False)
-        self.stop_button.setEnabled(True)
-        self.device_combo.setEnabled(False)
-        self.browse_button.setEnabled(False)
-        self.processing_checkbox.setEnabled(False)
-        self.status_label.setText("Status: Gravando...")
-    def stop_recording(self):
-        if self.recording_thread:
-            self.recording_thread.stop()
-            self.status_label.setText("Status: Parando...")
-            self.stop_button.setEnabled(False)
-    def on_recording_finished(self):
-        self.start_button.setEnabled(True)
-        self.stop_button.setEnabled(False)
-        self.device_combo.setEnabled(True)
-        self.browse_button.setEnabled(True)
-        self.processing_checkbox.setEnabled(True)
-        self.status_label.setText("Status: Parado")
-        self.volume_bar.setValue(0)
-        QMessageBox.information(self, "Gravação Finalizada", "A gravação foi interrompida.")
-    def update_status(self, status_dict):
-        total_seconds = int(status_dict["total_time"])
-        h = total_seconds // 3600
-        m = (total_seconds % 3600) // 60
-        s = total_seconds % 60
-        self.total_time_label.setText(f"Tempo Total Gravado: {h:02d}:{m:02d}:{s:02d}")
-        remaining = max(0, status_dict["chunk_time_remaining"])
-        self.chunk_time_label.setText(f"Tempo Restante no Trecho: {remaining:.1f}s")
-        self.volume_bar.setValue(int(status_dict["volume"]))
-    def show_error_message(self, message):
-        self.stop_recording()
-        QMessageBox.critical(self, "Erro de Gravação", message)
-    def update_resource_usage(self):
-        try:
-            cpu_percent = self.process.cpu_percent(interval=None)
-            mem_info = self.process.memory_info()
-            mem_percent = self.process.memory_percent()
-            self.cpu_bar.setValue(int(cpu_percent))
-            self.mem_bar.setValue(int(mem_percent))
-            mem_mb = mem_info.rss / (1024 * 1024)
-            self.mem_bar.setFormat(f"Memória: {mem_mb:.1f} MB (%p%)")
-        except psutil.NoSuchProcess:
-            self.cpu_bar.setValue(0)
-            self.cpu_bar.setFormat("CPU: N/A")
-            self.mem_bar.setValue(0)
-            self.mem_bar.setFormat("Memória: N/A")
-        except Exception as e:
-            print(f"Erro ao monitorar recursos: {e}")
-            self.cpu_bar.setValue(0)
-            self.cpu_bar.setFormat("CPU: Erro")
-            self.mem_bar.setValue(0)
-            self.mem_bar.setFormat("Memória: Erro")
-
-    def open_settings_dialog(self):
-        """
-        Abre a caixa de diálogo de configurações do FastWhisper.
-        """
-        # --- MODIFICAÇÃO: Passa a classe de diálogo correta ---
-        settings_dialog = FastWhisperSettingsDialog(self.whisper_settings, self)
-        if settings_dialog.exec_():
-            self.whisper_settings = settings_dialog.get_settings()
-            QMessageBox.information(self, "Configurações Salvas", "As configurações do FastWhisper foram salvas com sucesso!")
-
-    def closeEvent(self, event):
-        if self.recording_thread and self.recording_thread.isRunning():
-            self.stop_recording()
-            self.recording_thread.wait()
-        event.accept()
-
-# --- MODIFICAÇÃO PRINCIPAL: Diálogo de Configurações para FastWhisper ---
-class FastWhisperSettingsDialog(QDialog):
-    def __init__(self, current_settings, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Configurações do FastWhisper")
-        self.setFixedSize(600, 650)
-        self.settings = current_settings.copy()
-
-        self.layout = QVBoxLayout(self)
-        scroll_area = QScrollArea(self)
-        scroll_area.setWidgetResizable(True)
-        self.layout.addWidget(scroll_area)
-        scroll_content = QWidget()
-        self.form_layout = QFormLayout(scroll_content)
-        scroll_area.setWidget(scroll_content)
-
-        # --- NOVOS E MODIFICADOS PARÂMETROS ---
-        # Modelo
-        self.model_combo = QComboBox()
-        self.model_combo.addItems(["tiny", "base", "small", "medium", "large-v2", "large-v3"])
-        self.model_combo.setCurrentText(self.settings.get("model", "medium"))
-        self.form_layout.addRow("Modelo:", self.model_combo)
-        self.form_layout.addRow("", QLabel("Modelos maiores são mais precisos, porém mais lentos. 'large-v3' é o mais preciso."))
-
-        # Dispositivo
-        self.device_combo = QComboBox()
-        self.device_combo.addItems(["cpu", "cuda"])
-        gpu_available = torch and torch.cuda.is_available()
-        if not gpu_available:
-            self.device_combo.model().item(1).setEnabled(False)
-        self.device_combo.setCurrentText(self.settings.get("device", "cpu"))
-        self.form_layout.addRow("Dispositivo:", self.device_combo)
-        self.form_layout.addRow("", QLabel("'cuda' (GPU) é muito mais rápido."))
-        
-        # Compute Type (NOVO e CRÍTICO para performance)
-        self.compute_type_combo = QComboBox()
-        if gpu_available:
-            self.compute_type_combo.addItems(["int8_float16", "float16", "int8", "float32"])
-        else:
-            self.compute_type_combo.addItems(["int8", "float32"])
-        self.compute_type_combo.setCurrentText(self.settings.get("compute_type", "int8"))
-        self.form_layout.addRow("Tipo de Computação:", self.compute_type_combo)
-        self.form_layout.addRow("", QLabel("'int8' é o mais rápido (CPU). 'int8_float16' é o ideal para GPUs (velocidade/precisão)."))
-
-        # VAD Filter (NOVO para performance)
-        self.vad_filter_checkbox = QCheckBox("Usar Filtro VAD (Pular Silêncio)")
-        self.vad_filter_checkbox.setChecked(self.settings.get("vad_filter", True))
-        self.form_layout.addRow("", self.vad_filter_checkbox)
-        self.form_layout.addRow("", QLabel("Detecta e pula partes sem fala no áudio, acelerando muito a transcrição."))
-
-        # Idioma
-        self.language_combo = QComboBox()
-        self.language_combo.addItems(["pt", "en", "auto"])
-        self.language_combo.setCurrentText(self.settings.get("language", "pt"))
-        self.form_layout.addRow("Idioma:", self.language_combo)
-        self.form_layout.addRow("", QLabel("Idioma do áudio. 'auto' para detecção automática."))
-
-        # Parâmetros de Beam Search (sem alteração na lógica, mas importantes)
-        self.temperature_slider = QSlider(Qt.Horizontal)
-        self.temperature_slider.setRange(0, 10)
-        self.temperature_slider.setValue(int(self.settings.get("temperature", 0.0) * 10))
-        self.temperature_label = QLabel(f"Temperatura: {self.temperature_slider.value() / 10.0}")
-        self.temperature_slider.valueChanged.connect(lambda v: self.temperature_label.setText(f"Temperatura: {v / 10.0}"))
-        self.form_layout.addRow(self.temperature_label, self.temperature_slider)
-        self.best_of_slider = QSlider(Qt.Horizontal)
-        self.best_of_slider.setRange(1, 10)
-        self.best_of_slider.setValue(self.settings.get("best_of", 5))
-        self.best_of_label = QLabel(f"Best Of: {self.best_of_slider.value()}")
-        self.best_of_slider.valueChanged.connect(lambda v: self.best_of_label.setText(f"Best Of: {v}"))
-        self.form_layout.addRow(self.best_of_label, self.best_of_slider)
-        self.beam_size_slider = QSlider(Qt.Horizontal)
-        self.beam_size_slider.setRange(1, 10)
-        self.beam_size_slider.setValue(self.settings.get("beam_size", 5))
-        self.beam_size_label = QLabel(f"Beam Size: {self.beam_size_slider.value()}")
-        self.beam_size_slider.valueChanged.connect(lambda v: self.beam_size_label.setText(f"Beam Size: {v}"))
-        self.form_layout.addRow(self.beam_size_label, self.beam_size_slider)
-        
-        # Parâmetros de Contexto
-        self.condition_checkbox = QCheckBox("Condicionar no texto anterior")
-        self.condition_checkbox.setChecked(self.settings.get("condition_on_previous_text", True))
-        self.form_layout.addRow("", self.condition_checkbox)
-        self.initial_prompt_edit = QLineEdit(self.settings.get("initial_prompt", ""))
-        self.form_layout.addRow("Prompt Inicial:", self.initial_prompt_edit)
-
-        # --- NOVO: Fator de Aceleração ---
-        self.acceleration_spinbox = QDoubleSpinBox()
-        self.acceleration_spinbox.setRange(1.0, 5.0) # Define o range de aceleração
-        self.acceleration_spinbox.setSingleStep(0.1)
-        self.acceleration_spinbox.setValue(self.settings.get("acceleration_factor", 1.5))
-        self.form_layout.addRow("Fator de Aceleração (Vídeo):", self.acceleration_spinbox)
-        self.form_layout.addRow("", QLabel("Velocidade do áudio extraído de arquivos de vídeo. 1.0 = normal."))
-
-        # Botões
-        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
-        self.auto_cfg_button = QPushButton("Cfg. Automática")
-        self.auto_cfg_button.clicked.connect(self.auto_configure)
-        self.button_box.addButton(self.auto_cfg_button, QDialogButtonBox.ActionRole)
-        self.layout.addWidget(self.button_box)
-
-    def auto_configure(self):
-        total_ram_gb = psutil.virtual_memory().total / (1024**3)
-        gpu_available = torch and torch.cuda.is_available()
-
-        info_msg = (f"RAM Total: {total_ram_gb:.2f} GB\nGPU disponível: {'Sim' if gpu_available else 'Não'}\n\n"
-                    "Ajustando configurações para o melhor equilíbrio entre desempenho e precisão.")
-        QMessageBox.information(self, "Análise de Hardware", info_msg)
-
-        self.vad_filter_checkbox.setChecked(True) # Quase sempre a melhor opção
-        self.condition_checkbox.setChecked(True)
-        self.temperature_slider.setValue(0)
-        self.initial_prompt_edit.clear()
-        self.acceleration_spinbox.setValue(1.5) # Reseta para o padrão
-        
-        if gpu_available:
-            # GPU VRAM é o fator limitante
-            vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-            self.device_combo.setCurrentText("cuda")
-            self.compute_type_combo.setCurrentText("int8_float16")
-            
-            if vram_gb >= 10:
-                self.model_combo.setCurrentText("large-v3")
-                self.beam_size_slider.setValue(5)
-                self.best_of_slider.setValue(5)
-                rec_msg = "GPU potente detectada (>10GB VRAM)! Sugerindo 'large-v3' com 'int8_float16'."
-            elif vram_gb >= 5:
-                self.model_combo.setCurrentText("medium")
-                self.beam_size_slider.setValue(5)
-                self.best_of_slider.setValue(5)
-                rec_msg = "GPU intermediária detectada (5-10GB VRAM). Sugerindo 'medium' com 'int8_float16'."
-            else:
-                self.model_combo.setCurrentText("small")
-                self.beam_size_slider.setValue(2)
-                self.best_of_slider.setValue(2)
-                rec_msg = "GPU com pouca VRAM (<5GB). Sugerindo 'small' com 'int8_float16' para evitar erros de memória."
-            QMessageBox.information(self, "Configuração Automática (GPU)", rec_msg)
-        else: # CPU-only
-            self.device_combo.setCurrentText("cpu")
-            self.compute_type_combo.setCurrentText("int8")
-            
-            if total_ram_gb >= 8:
-                self.model_combo.setCurrentText("medium")
-                self.beam_size_slider.setValue(5)
-                self.best_of_slider.setValue(5)
-                rec_msg = "Hardware potente (CPU). Sugerindo modelo 'medium' com 'int8' para melhor precisão."
-            elif total_ram_gb >= 4:
-                self.model_combo.setCurrentText("small")
-                self.beam_size_slider.setValue(3)
-                self.best_of_slider.setValue(3)
-                rec_msg = "Hardware intermediário (CPU). Sugerindo 'small' com 'int8'."
-            else:
-                self.model_combo.setCurrentText("base")
-                self.beam_size_slider.setValue(2)
-                self.best_of_slider.setValue(2)
-                rec_msg = "Hardware de baixo desempenho (CPU). Sugerindo 'base' com 'int8' para garantir execução."
-            QMessageBox.information(self, "Configuração Automática (CPU)", rec_msg)
-            
-        # Atualiza labels dos sliders
-        self.temperature_label.setText(f"Temperatura: {self.temperature_slider.value() / 10.0}")
-        self.best_of_label.setText(f"Best Of: {self.best_of_slider.value()}")
-        self.beam_size_label.setText(f"Beam Size: {self.beam_size_slider.value()}")
-
-    def get_settings(self):
-        self.settings["model"] = self.model_combo.currentText()
-        self.settings["language"] = self.language_combo.currentText()
-        self.settings["device"] = self.device_combo.currentText()
-        self.settings["compute_type"] = self.compute_type_combo.currentText()
-        self.settings["vad_filter"] = self.vad_filter_checkbox.isChecked()
-        self.settings["temperature"] = self.temperature_slider.value() / 10.0
-        self.settings["best_of"] = self.best_of_slider.value()
-        self.settings["beam_size"] = self.beam_size_slider.value()
-        self.settings["condition_on_previous_text"] = self.condition_checkbox.isChecked()
-        self.settings["initial_prompt"] = self.initial_prompt_edit.text()
-        self.settings["acceleration_factor"] = self.acceleration_spinbox.value()
-        return self.settings
-
-# --- MODIFICAÇÃO PRINCIPAL: Lógica de Transcrição ---
 class TranscriptionThread(QThread):
-    """
-    Thread para lidar com a transcrição de áudio em segundo plano usando fast-whisper.
-    """
     update_status = pyqtSignal(dict)
     update_transcription = pyqtSignal(str)
     transcription_finished = pyqtSignal(str)
@@ -578,84 +127,66 @@ class TranscriptionThread(QThread):
     def __init__(self, audio_folder, whisper_settings):
         super().__init__()
         self.audio_folder = audio_folder
-        self.whisper_settings = whisper_settings.copy() # Usa uma cópia para poder modificar
+        self.whisper_settings = whisper_settings.copy()
         self._is_running = True
 
     def run(self):
+        # ... (lógica da thread de transcrição permanece a mesma)
         model = None
         last_file_time = 0
         try:
-            # Separa os parâmetros: os para carregar o modelo e os para a transcrição
             model_size = self.whisper_settings.pop("model")
             device = self.whisper_settings.pop("device")
             compute_type = self.whisper_settings.pop("compute_type")
-            acceleration_factor = self.whisper_settings.pop("acceleration_factor", 1.5) # Usa pop para remover
-            transcribe_params = self.whisper_settings # Agora o dicionário está limpo
+            acceleration_factor = self.whisper_settings.pop("acceleration_factor", 1.5)
+            transcribe_params = self.whisper_settings
 
             self.update_status.emit({"text": f"Carregando modelo FastWhisper ({model_size}) no dispositivo {device} ({compute_type})...", "last_time": 0, "total_time": 0})
             model = WhisperModel(model_size, device=device, compute_type=compute_type)
             self.update_status.emit({"text": "Modelo carregado. Procurando arquivos...", "last_time": 0, "total_time": 0})
 
-            # --- NOVA LÓGICA DE BUSCA E PROCESSAMENTO DE ARQUIVOS ---
             all_files = []
-            # Busca por MP4 e extrai o áudio se necessário
             mp4_files = sorted(glob.glob(os.path.join(self.audio_folder, "*.mp4")))
             for mp4_path in mp4_files:
                 base_name = os.path.splitext(os.path.basename(mp4_path))[0]
-                # Nome do arquivo WAV acelerado dinamicamente
                 accelerated_wav_path = os.path.join(self.audio_folder, f"{base_name}_{acceleration_factor}x.wav")
 
                 if not os.path.exists(accelerated_wav_path):
                     self.update_status.emit({"text": f"Extraindo áudio de {os.path.basename(mp4_path)}...", "last_time": 0, "total_time": 0})
                     try:
-                        # Comando ffmpeg dinâmico
+                        import subprocess
                         command = [
-                            'ffmpeg', '-i', mp4_path,
-                            '-vn',  # Ignora o vídeo
-                            '-acodec', 'pcm_s16le', # Codec de áudio WAV
-                            '-ar', '16000', # Amostragem para 16kHz (ideal para Whisper)
-                            '-ac', '1', # Converte para mono
-                            '-filter:a', f'atempo={acceleration_factor}', # Acelera o áudio dinamicamente
+                            'ffmpeg', '-i', mp4_path, '-vn', '-acodec', 'pcm_s16le',
+                            '-ar', '16000', '-ac', '1', '-filter:a', f'atempo={acceleration_factor}',
                             accelerated_wav_path
                         ]
-                        # Usamos subprocess.run para esperar a conclusão do ffmpeg
-                        import subprocess
                         subprocess.run(command, check=True, capture_output=True, text=True)
                         self.update_status.emit({"text": f"Áudio extraído e salvo como {os.path.basename(accelerated_wav_path)}", "last_time": 0, "total_time": 0})
                         all_files.append(accelerated_wav_path)
                     except subprocess.CalledProcessError as e:
                         error_msg = f"Erro ao processar {os.path.basename(mp4_path)} com FFmpeg: {e.stderr}"
                         self.update_status.emit({"text": error_msg, "last_time": 0, "total_time": 0})
-                        # Pula este arquivo se o ffmpeg falhar
                         continue
                     except FileNotFoundError:
                         self.update_status.emit({"text": "Erro: FFmpeg não encontrado. Certifique-se de que está instalado e no PATH do sistema.", "last_time": 0, "total_time": 0})
                         self.transcription_finished.emit("")
                         return
                 else:
-                    # Se o arquivo já existe, apenas o adiciona à lista
                     all_files.append(accelerated_wav_path)
 
-            # Lógica de busca de arquivos WAV (dando preferência aos processados)
             processed_wavs = sorted(glob.glob(os.path.join(self.audio_folder, "*_processed.wav")))
             original_wavs = sorted(glob.glob(os.path.join(self.audio_folder, "*.wav")))
             
-            # Adiciona os WAVs processados
             all_files.extend(processed_wavs)
             
-            # Adiciona os WAVs originais que não têm uma versão processada ou acelerada
             processed_originals = {f.replace("_processed.wav", ".wav") for f in processed_wavs}
-            # Compara com o mp4 original para não duplicar
             accelerated_originals = {f.replace(f"_{acceleration_factor}x.wav", ".mp4") for f in all_files if f.endswith(f"_{acceleration_factor}x.wav")}
             
             for wav_file in original_wavs:
-                # Não adiciona se for um arquivo já processado ou um arquivo de áudio acelerado
                 if wav_file not in processed_originals and not wav_file.endswith(".wav"):
                      all_files.append(wav_file)
 
-            # Remove duplicatas e ordena
             files_to_transcribe = sorted(list(set(all_files)))
-            # --- FIM DA NOVA LÓGICA ---
 
             if not files_to_transcribe:
                 self.update_status.emit({"text": "Nenhum arquivo de áudio (.wav, .mp4) encontrado.", "last_time": 0, "total_time": 0})
@@ -697,8 +228,380 @@ class TranscriptionThread(QThread):
     def stop(self):
         self._is_running = False
 
+# --- Janela Principal da Aplicação ---
+class AudioRecorderApp(QMainWindow, Ui_MainWindow):
+    def __init__(self):
+        super().__init__()
+        # Configura a UI a partir da classe importada
+        self.setupUi(self)
+
+        # --- Inicialização da Lógica da Aplicação ---
+        self.output_path = os.path.join(os.getcwd(), OUTPUT_DIR)
+        self.ensure_output_path_exists()
+        self.path_textbox.setText(self.output_path)
+        
+        self.recording_thread = None
+        self.transcription_thread = None
+
+        self.whisper_settings = {
+            "model": "medium", "language": "pt", "device": "cpu",
+            "compute_type": "int8", "vad_filter": True, "temperature": 0.0,
+            "best_of": 5, "beam_size": 5, "condition_on_previous_text": True,
+            "initial_prompt": "", "acceleration_factor": 1.5,
+        }
+
+        # Conecta os sinais dos widgets (da UI) aos slots (métodos de lógica)
+        self.connect_signals()
+
+        # Preenche a lista de dispositivos
+        self.populate_devices()
+
+        # Inicia o timer para monitorar recursos
+        self.process = psutil.Process(os.getpid())
+        self.resource_timer = QTimer(self)
+        self.resource_timer.setInterval(1000)
+        self.resource_timer.timeout.connect(self.update_resource_usage)
+        self.resource_timer.start()
+
+    def connect_signals(self):
+        """Conecta todos os sinais da UI aos seus respectivos slots."""
+        self.browse_button.clicked.connect(self.browse_folder)
+        self.start_button.clicked.connect(self.start_recording)
+        self.stop_button.clicked.connect(self.stop_recording)
+        self.transcribe_button.clicked.connect(self.start_transcription)
+        self.settings_button.clicked.connect(self.open_settings_dialog)
+
+    # --- Métodos de Lógica da Aplicação (Slots) ---
+    def ensure_output_path_exists(self):
+        try:
+            os.makedirs(self.output_path, exist_ok=True)
+        except OSError as e:
+            QMessageBox.critical(self, "Erro de Diretório", f"Não foi possível criar a pasta:\n{self.output_path}\n\n{e}")
+
+    def browse_folder(self):
+        directory = QFileDialog.getExistingDirectory(self, "Selecionar Pasta", self.output_path)
+        if directory:
+            self.output_path = directory
+            self.path_textbox.setText(self.output_path)
+            self.ensure_output_path_exists()
+
+    def start_transcription(self):
+        self.transcription_area.clear()
+        self.transcribe_button.setEnabled(False)
+        self.start_button.setEnabled(False)
+        self.stop_button.setEnabled(False)
+        self.browse_button.setEnabled(False)
+        self.transcription_thread = TranscriptionThread(self.output_path, self.whisper_settings)
+        self.transcription_thread.update_status.connect(self.update_transcription_status)
+        self.transcription_thread.update_transcription.connect(self.append_transcription)
+        self.transcription_thread.transcription_finished.connect(self.on_transcription_finished)
+        self.transcription_thread.start()
+
+    def update_transcription_status(self, status_dict):
+        self.transcription_status_label.setText(status_dict.get("text", ""))
+        last_time = status_dict.get("last_time", 0)
+        if last_time > 0:
+            self.last_file_time_label.setText(f"Tempo do Último Arquivo: {last_time:.2f} segundos")
+        else:
+            self.last_file_time_label.setText("Tempo do Último Arquivo: --")
+        total_time = status_dict.get("total_time", 0)
+        if total_time > 0:
+            self.total_transcription_time_label.setText(f"Tempo Total de Transcrição: {total_time:.2f} segundos")
+        else:
+            self.total_transcription_time_label.setText("Tempo Total de Transcrição: --")
+
+    def append_transcription(self, text):
+        self.transcription_area.append(text)
+
+    def on_transcription_finished(self, full_text):
+        self.transcribe_button.setEnabled(True)
+        self.start_button.setEnabled(True)
+        self.browse_button.setEnabled(True)
+        if not self.recording_thread or not self.recording_thread.isRunning():
+            self.stop_button.setEnabled(False)
+        if full_text:
+            save_path = os.path.join(self.output_path, "transcricao_completa.txt")
+            try:
+                with open(save_path, 'w', encoding='utf-8') as f:
+                    f.write(full_text)
+                self.update_transcription_status({"text": f"Transcrição concluída! Resultado salvo em {save_path}", "last_time": 0, "total_time": 0})
+            except Exception as e:
+                self.update_transcription_status({"text": f"Erro ao salvar arquivo de transcrição: {e}", "last_time": 0, "total_time": 0})
+
+    def populate_devices(self):
+        self.device_combo.clear()
+        self.devices = sd.query_devices()
+        self.input_devices = []
+        found_loopback = False
+        try:
+            default_output = sd.query_devices(kind='output')
+            loopback_device = sd.query_devices(default_output['name'], kind='input')
+            loopback_index = loopback_device['index']
+            self.device_combo.addItem(f"Áudio do Sistema ({loopback_device['name']})", loopback_index)
+            self.input_devices.append((loopback_index, loopback_device))
+            found_loopback = True
+            print(f"Dispositivo de loopback encontrado: {loopback_device['name']}")
+        except (ValueError, sd.PortAudioError, KeyError) as e:
+            print(f"Dispositivo de loopback não encontrado. Erro: {e}")
+        for i, device in enumerate(self.devices):
+            if device['max_input_channels'] > 0:
+                if not any(i == d[0] for d in self.input_devices):
+                    self.device_combo.addItem(f"({i}) {device['name']}", i)
+                    self.input_devices.append((i, device))
+        if not found_loopback:
+            self.device_combo.addItem("Áudio do Sistema (Não disponível)")
+            last_item_index = self.device_combo.count() - 1
+            self.device_combo.model().item(last_item_index).setEnabled(False)
+
+    def start_recording(self):
+        device_index = self.device_combo.currentData()
+        if device_index is None:
+            QMessageBox.warning(self, "Dispositivo Inválido", "O dispositivo selecionado não está disponível.")
+            return
+        channels = self.devices[device_index]['max_input_channels']
+        channels_to_use = min(channels, 2)
+        apply_processing = self.processing_checkbox.isChecked()
+        self.recording_thread = RecordingThread(device_index, channels_to_use, self.output_path, apply_processing)
+        self.recording_thread.status_update.connect(self.update_status)
+        self.recording_thread.recording_error.connect(self.show_error_message)
+        self.recording_thread.finished.connect(self.on_recording_finished)
+        self.recording_thread.start()
+        self.start_button.setEnabled(False)
+        self.stop_button.setEnabled(True)
+        self.device_combo.setEnabled(False)
+        self.browse_button.setEnabled(False)
+        self.processing_checkbox.setEnabled(False)
+        self.status_label.setText("Gravando...")
+
+    def stop_recording(self):
+        if self.recording_thread:
+            self.recording_thread.stop()
+            self.status_label.setText("Parando...")
+            self.stop_button.setEnabled(False)
+
+    def on_recording_finished(self):
+        self.start_button.setEnabled(True)
+        self.stop_button.setEnabled(False)
+        self.device_combo.setEnabled(True)
+        self.browse_button.setEnabled(True)
+        self.processing_checkbox.setEnabled(True)
+        self.status_label.setText("Parado")
+        self.volume_bar.setValue(0)
+        QMessageBox.information(self, "Gravação Finalizada", "A gravação foi interrompida.")
+
+    def update_status(self, status_dict):
+        total_seconds = int(status_dict["total_time"])
+        h = total_seconds // 3600
+        m = (total_seconds % 3600) // 60
+        s = total_seconds % 60
+        self.total_time_label.setText(f"{h:02d}:{m:02d}:{s:02d}")
+        remaining = max(0, status_dict["chunk_time_remaining"])
+        self.chunk_time_label.setText(f"{remaining:.1f}s")
+        self.volume_bar.setValue(int(status_dict["volume"]))
+
+    def show_error_message(self, message):
+        self.stop_recording()
+        QMessageBox.critical(self, "Erro de Gravação", message)
+
+    def update_resource_usage(self):
+        try:
+            cpu_percent = self.process.cpu_percent(interval=None)
+            mem_info = self.process.memory_info()
+            mem_percent = self.process.memory_percent()
+            self.cpu_bar.setValue(int(cpu_percent))
+            self.mem_bar.setValue(int(mem_percent))
+            mem_mb = mem_info.rss / (1024 * 1024)
+            self.mem_bar.setFormat(f"{mem_mb:.1f} MB (%p%)")
+        except psutil.NoSuchProcess:
+            self.cpu_bar.setValue(0)
+            self.mem_bar.setValue(0)
+        except Exception as e:
+            print(f"Erro ao monitorar recursos: {e}")
+            self.cpu_bar.setValue(0)
+            self.mem_bar.setValue(0)
+
+    def open_settings_dialog(self):
+        settings_dialog = FastWhisperSettingsDialog(self.whisper_settings, self)
+        if settings_dialog.exec_():
+            self.whisper_settings = settings_dialog.get_settings()
+            QMessageBox.information(self, "Configurações Salvas", "As configurações do FastWhisper foram salvas com sucesso!")
+
+    def closeEvent(self, event):
+        if self.recording_thread and self.recording_thread.isRunning():
+            self.stop_recording()
+            self.recording_thread.wait()
+        event.accept()
+
+# --- Diálogo de Configurações (sem alteração) ---
+class FastWhisperSettingsDialog(QDialog):
+    # ... (lógica do diálogo de configurações permanece a mesma)
+    def __init__(self, current_settings, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Configurações do FastWhisper")
+        self.setFixedSize(600, 650)
+        self.settings = current_settings.copy()
+
+        self.layout = QVBoxLayout(self)
+        scroll_area = QScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+        self.layout.addWidget(scroll_area)
+        scroll_content = QWidget()
+        self.form_layout = QFormLayout(scroll_content)
+        scroll_area.setWidget(scroll_content)
+
+        self.model_combo = QComboBox()
+        self.model_combo.addItems(["tiny", "base", "small", "medium", "large-v2", "large-v3"])
+        self.model_combo.setCurrentText(self.settings.get("model", "medium"))
+        self.form_layout.addRow("Modelo:", self.model_combo)
+        self.form_layout.addRow("", QLabel("Modelos maiores são mais precisos, porém mais lentos. 'large-v3' é o mais preciso."))
+
+        self.device_combo = QComboBox()
+        self.device_combo.addItems(["cpu", "cuda"])
+        gpu_available = torch and torch.cuda.is_available()
+        if not gpu_available:
+            self.device_combo.model().item(1).setEnabled(False)
+        self.device_combo.setCurrentText(self.settings.get("device", "cpu"))
+        self.form_layout.addRow("Dispositivo:", self.device_combo)
+        self.form_layout.addRow("", QLabel("'cuda' (GPU) é muito mais rápido."))
+        
+        self.compute_type_combo = QComboBox()
+        if gpu_available:
+            self.compute_type_combo.addItems(["int8_float16", "float16", "int8", "float32"])
+        else:
+            self.compute_type_combo.addItems(["int8", "float32"])
+        self.compute_type_combo.setCurrentText(self.settings.get("compute_type", "int8"))
+        self.form_layout.addRow("Tipo de Computação:", self.compute_type_combo)
+        self.form_layout.addRow("", QLabel("'int8' é o mais rápido (CPU). 'int8_float16' é o ideal para GPUs (velocidade/precisão)."))
+
+        self.vad_filter_checkbox = QCheckBox("Usar Filtro VAD (Pular Silêncio)")
+        self.vad_filter_checkbox.setChecked(self.settings.get("vad_filter", True))
+        self.form_layout.addRow("", self.vad_filter_checkbox)
+        self.form_layout.addRow("", QLabel("Detecta e pula partes sem fala no áudio, acelerando muito a transcrição."))
+
+        self.language_combo = QComboBox()
+        self.language_combo.addItems(["pt", "en", "auto"])
+        self.language_combo.setCurrentText(self.settings.get("language", "pt"))
+        self.form_layout.addRow("Idioma:", self.language_combo)
+        self.form_layout.addRow("", QLabel("Idioma do áudio. 'auto' para detecção automática."))
+
+        self.temperature_slider = QSlider(Qt.Horizontal)
+        self.temperature_slider.setRange(0, 10)
+        self.temperature_slider.setValue(int(self.settings.get("temperature", 0.0) * 10))
+        self.temperature_label = QLabel(f"Temperatura: {self.temperature_slider.value() / 10.0}")
+        self.temperature_slider.valueChanged.connect(lambda v: self.temperature_label.setText(f"Temperatura: {v / 10.0}"))
+        self.form_layout.addRow(self.temperature_label, self.temperature_slider)
+        self.best_of_slider = QSlider(Qt.Horizontal)
+        self.best_of_slider.setRange(1, 10)
+        self.best_of_slider.setValue(self.settings.get("best_of", 5))
+        self.best_of_label = QLabel(f"Best Of: {self.best_of_slider.value()}")
+        self.best_of_slider.valueChanged.connect(lambda v: self.best_of_label.setText(f"Best Of: {v}"))
+        self.form_layout.addRow(self.best_of_label, self.best_of_slider)
+        self.beam_size_slider = QSlider(Qt.Horizontal)
+        self.beam_size_slider.setRange(1, 10)
+        self.beam_size_slider.setValue(self.settings.get("beam_size", 5))
+        self.beam_size_label = QLabel(f"Beam Size: {self.beam_size_slider.value()}")
+        self.beam_size_slider.valueChanged.connect(lambda v: self.beam_size_label.setText(f"Beam Size: {v}"))
+        self.form_layout.addRow(self.beam_size_label, self.beam_size_slider)
+        
+        self.condition_checkbox = QCheckBox("Condicionar no texto anterior")
+        self.condition_checkbox.setChecked(self.settings.get("condition_on_previous_text", True))
+        self.form_layout.addRow("", self.condition_checkbox)
+        self.initial_prompt_edit = QLineEdit(self.settings.get("initial_prompt", ""))
+        self.form_layout.addRow("Prompt Inicial:", self.initial_prompt_edit)
+
+        self.acceleration_spinbox = QDoubleSpinBox()
+        self.acceleration_spinbox.setRange(1.0, 5.0)
+        self.acceleration_spinbox.setSingleStep(0.1)
+        self.acceleration_spinbox.setValue(self.settings.get("acceleration_factor", 1.5))
+        self.form_layout.addRow("Fator de Aceleração (Vídeo):", self.acceleration_spinbox)
+        self.form_layout.addRow("", QLabel("Velocidade do áudio extraído de arquivos de vídeo. 1.0 = normal."))
+
+        self.button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        self.auto_cfg_button = QPushButton("Cfg. Automática")
+        self.auto_cfg_button.clicked.connect(self.auto_configure)
+        self.button_box.addButton(self.auto_cfg_button, QDialogButtonBox.ActionRole)
+        self.layout.addWidget(self.button_box)
+
+    def auto_configure(self):
+        total_ram_gb = psutil.virtual_memory().total / (1024**3)
+        gpu_available = torch and torch.cuda.is_available()
+
+        info_msg = (f"RAM Total: {total_ram_gb:.2f} GB\nGPU disponível: {'Sim' if gpu_available else 'Não'}\n\n"
+                    "Ajustando configurações para o melhor equilíbrio entre desempenho e precisão.")
+        QMessageBox.information(self, "Análise de Hardware", info_msg)
+
+        self.vad_filter_checkbox.setChecked(True)
+        self.condition_checkbox.setChecked(True)
+        self.temperature_slider.setValue(0)
+        self.initial_prompt_edit.clear()
+        self.acceleration_spinbox.setValue(1.5)
+        
+        if gpu_available:
+            vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+            self.device_combo.setCurrentText("cuda")
+            self.compute_type_combo.setCurrentText("int8_float16")
+            
+            if vram_gb >= 10:
+                self.model_combo.setCurrentText("large-v3")
+                self.beam_size_slider.setValue(5)
+                self.best_of_slider.setValue(5)
+                rec_msg = "GPU potente detectada (>10GB VRAM)! Sugerindo 'large-v3' com 'int8_float16'."
+            elif vram_gb >= 5:
+                self.model_combo.setCurrentText("medium")
+                self.beam_size_slider.setValue(5)
+                self.best_of_slider.setValue(5)
+                rec_msg = "GPU intermediária detectada (5-10GB VRAM). Sugerindo 'medium' com 'int8_float16'."
+            else:
+                self.model_combo.setCurrentText("small")
+                self.beam_size_slider.setValue(2)
+                self.best_of_slider.setValue(2)
+                rec_msg = "GPU com pouca VRAM (<5GB). Sugerindo 'small' com 'int8_float16' para evitar erros de memória."
+            QMessageBox.information(self, "Configuração Automática (GPU)", rec_msg)
+        else: # CPU-only
+            self.device_combo.setCurrentText("cpu")
+            self.compute_type_combo.setCurrentText("int8")
+            
+            if total_ram_gb >= 8:
+                self.model_combo.setCurrentText("medium")
+                self.beam_size_slider.setValue(5)
+                self.best_of_slider.setValue(5)
+                rec_msg = "Hardware potente (CPU). Sugerindo modelo 'medium' com 'int8' para melhor precisão."
+            elif total_ram_gb >= 4:
+                self.model_combo.setCurrentText("small")
+                self.beam_size_slider.setValue(3)
+                self.best_of_slider.setValue(3)
+                rec_msg = "Hardware intermediário (CPU). Sugerindo 'small' com 'int8'."
+            else:
+                self.model_combo.setCurrentText("base")
+                self.beam_size_slider.setValue(2)
+                self.best_of_slider.setValue(2)
+                rec_msg = "Hardware de baixo desempenho (CPU). Sugerindo 'base' com 'int8' para garantir execução."
+            QMessageBox.information(self, "Configuração Automática (CPU)", rec_msg)
+            
+        self.temperature_label.setText(f"Temperatura: {self.temperature_slider.value() / 10.0}")
+        self.best_of_label.setText(f"Best Of: {self.best_of_slider.value()}")
+        self.beam_size_label.setText(f"Beam Size: {self.beam_size_slider.value()}")
+
+    def get_settings(self):
+        self.settings["model"] = self.model_combo.currentText()
+        self.settings["language"] = self.language_combo.currentText()
+        self.settings["device"] = self.device_combo.currentText()
+        self.settings["compute_type"] = self.compute_type_combo.currentText()
+        self.settings["vad_filter"] = self.vad_filter_checkbox.isChecked()
+        self.settings["temperature"] = self.temperature_slider.value() / 10.0
+        self.settings["best_of"] = self.best_of_slider.value()
+        self.settings["beam_size"] = self.beam_size_slider.value()
+        self.settings["condition_on_previous_text"] = self.condition_checkbox.isChecked()
+        self.settings["initial_prompt"] = self.initial_prompt_edit.text()
+        self.settings["acceleration_factor"] = self.acceleration_spinbox.value()
+        return self.settings
+
+# --- Ponto de Entrada da Aplicação ---
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    load_stylesheet(app)
     main_win = AudioRecorderApp()
     main_win.show()
     sys.exit(app.exec_())
