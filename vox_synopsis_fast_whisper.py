@@ -28,9 +28,10 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QMessageBox,
-    QPushButton,  # Adicionado QPushButton, QScrollArea, QWidget
+    QPushButton,
     QScrollArea,
     QSlider,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -45,7 +46,6 @@ except ImportError:
 
 # --- Configurações Globais ---
 SAMPLE_RATE = 48000
-CHUNK_DURATION_SECONDS = 60
 OUTPUT_DIR = "gravacoes"
 
 
@@ -71,12 +71,14 @@ class RecordingThread(QThread):
         channels: int,
         output_path: str,
         apply_processing: bool,
+        chunk_duration_seconds: int,
     ) -> None:
         super().__init__()
         self.device_index = device_index
         self.channels = channels
         self.output_path = output_path
         self.apply_processing = apply_processing
+        self.chunk_duration_seconds = chunk_duration_seconds
         self._is_running = False
         self.total_recorded_time = 0
 
@@ -95,7 +97,9 @@ class RecordingThread(QThread):
                     dtype="float32",
                 ) as stream:
                     print(f"Iniciando novo trecho. Salvando em: {filename}")
-                    for i in range(int(SAMPLE_RATE * CHUNK_DURATION_SECONDS / 1024)):
+                    for i in range(
+                        int(SAMPLE_RATE * self.chunk_duration_seconds / 1024)
+                    ):
                         if not self._is_running:
                             break
                         audio_chunk, overflowed = stream.read(1024)
@@ -108,8 +112,9 @@ class RecordingThread(QThread):
                         self.status_update.emit(
                             {
                                 "total_time": self.total_recorded_time,
-                                "chunk_time_remaining": CHUNK_DURATION_SECONDS
-                                - time_in_chunk,
+                                "chunk_time_remaining": (
+                                    self.chunk_duration_seconds - time_in_chunk
+                                ),
                                 "volume": volume_level * 100,
                             }
                         )
@@ -120,7 +125,10 @@ class RecordingThread(QThread):
                         )
                         break
                 if self._is_running:
-                    print(f"Trecho de {CHUNK_DURATION_SECONDS}s completo. Salvando...")
+                    print(
+                        f"Trecho de {self.chunk_duration_seconds}s completo. "
+                        "Salvando..."
+                    )
                     full_audio_data = np.concatenate(current_chunk_data)
                     sf.write(filename, full_audio_data, SAMPLE_RATE)
                     if self.apply_processing:
@@ -173,6 +181,75 @@ class TranscriptionThread(QThread):
         self.whisper_settings = whisper_settings.copy()
         self._is_running = True
 
+    def _split_audio_into_chunks(self, filepath: str, chunk_duration: int) -> list[str]:
+        base_name = os.path.splitext(os.path.basename(filepath))[0]
+        output_dir = os.path.dirname(filepath)
+        chunk_prefix = os.path.join(output_dir, f"{base_name}_chunk_")
+
+        # Get duration of the input file
+        try:
+            probe_command = [
+                "ffprobe",
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                filepath,
+            ]
+            duration_str = subprocess.check_output(probe_command, text=True).strip()
+            total_duration = float(duration_str)
+        except (subprocess.CalledProcessError, FileNotFoundError, ValueError) as e:
+            self.update_status.emit({
+                "text": (
+                    f"Erro ao obter duração do arquivo "
+                    f"{os.path.basename(filepath)}: {e}"
+                ),
+                "last_time": 0, "total_time": 0
+            })
+            return []
+
+        num_chunks = int(total_duration // chunk_duration) + (
+            1 if total_duration % chunk_duration > 0 else 0
+        )
+        chunk_files = []
+
+        for i in range(num_chunks):
+            start_time = i * chunk_duration
+            chunk_filepath = f"{chunk_prefix}{i:03d}.wav"
+
+            command = [
+                "ffmpeg",
+                "-i", filepath,
+                "-ss", str(start_time),
+                "-t", str(chunk_duration),
+                "-vn",
+                "-acodec", "pcm_s16le",
+                "-ar", "16000",
+                "-ac", "1",
+                chunk_filepath,
+            ]
+            try:
+                subprocess.run(command, check=True, capture_output=True, text=True)
+                chunk_files.append(chunk_filepath)
+            except subprocess.CalledProcessError as e:
+                self.update_status.emit({
+                    "text": (
+                    f"Erro ao dividir o arquivo {os.path.basename(filepath)} "
+                    f"(chunk {i}): {e.stderr}"
+                ),
+                    "last_time": 0, "total_time": 0
+                })
+                return []
+            except FileNotFoundError:
+                self.update_status.emit({
+                    "text": (
+                    "Erro: FFmpeg/FFprobe não encontrado. Certifique-se de que "
+                    "estão instalados e no PATH do sistema."
+                ),
+                    "last_time": 0, "total_time": 0
+                })
+                return []
+        return chunk_files
+
     def run(self):
         # ... (lógica da thread de transcrição permanece a mesma)
         model = None
@@ -181,7 +258,11 @@ class TranscriptionThread(QThread):
             model_size = self.whisper_settings.pop("model")
             device = self.whisper_settings.pop("device")
             compute_type = self.whisper_settings.pop("compute_type")
-            acceleration_factor = self.whisper_settings.pop("acceleration_factor", 1.5)
+            acceleration_factor = self.whisper_settings.pop("acceleration_factor", 1.25)
+            chunk_duration_seconds = self.whisper_settings.pop(
+                "chunk_duration_seconds", 60
+            )
+            print(f"[DEBUG] chunk_duration_seconds: {chunk_duration_seconds}")
             transcribe_params = self.whisper_settings
 
             self.update_status.emit(
@@ -203,7 +284,7 @@ class TranscriptionThread(QThread):
                 }
             )
 
-            all_files = []
+            all_files_to_process = []
             mp4_files = sorted(glob.glob(os.path.join(self.audio_folder, "*.mp4")))
             for mp4_path in mp4_files:
                 base_name = os.path.splitext(os.path.basename(mp4_path))[0]
@@ -250,7 +331,7 @@ class TranscriptionThread(QThread):
                                 "total_time": 0,
                             }
                         )
-                        all_files.append(accelerated_wav_path)
+                        all_files_to_process.append(accelerated_wav_path)
                     except subprocess.CalledProcessError as e:
                         error_msg = (
                             "Erro ao processar "
@@ -274,14 +355,14 @@ class TranscriptionThread(QThread):
                         self.transcription_finished.emit("")
                         return
                 else:
-                    all_files.append(accelerated_wav_path)
+                    all_files_to_process.append(accelerated_wav_path)
 
             processed_wavs = sorted(
                 glob.glob(os.path.join(self.audio_folder, "*_processed.wav"))
             )
             original_wavs = sorted(glob.glob(os.path.join(self.audio_folder, "*.wav")))
 
-            all_files.extend(processed_wavs)
+            all_files_to_process.extend(processed_wavs)
 
             processed_originals = {
                 f.replace("_processed.wav", ".wav") for f in processed_wavs
@@ -291,9 +372,19 @@ class TranscriptionThread(QThread):
                 if wav_file not in processed_originals and not wav_file.endswith(
                     ".wav"
                 ):
-                    all_files.append(wav_file)
+                    all_files_to_process.append(wav_file)
 
-            files_to_transcribe = sorted(list(set(all_files)))
+            files_to_transcribe = []
+            for filepath in all_files_to_process:
+                if chunk_duration_seconds > 0:
+                    chunks = self._split_audio_into_chunks(
+                        filepath, chunk_duration_seconds
+                    )
+                    files_to_transcribe.extend(chunks)
+                else:
+                    files_to_transcribe.append(filepath)
+
+            files_to_transcribe = sorted(list(set(files_to_transcribe)))
 
             if not files_to_transcribe:
                 self.update_status.emit(
@@ -398,7 +489,8 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
             "beam_size": 5,
             "condition_on_previous_text": True,
             "initial_prompt": "",
-            "acceleration_factor": 1.5,
+            "acceleration_factor": 1.25,
+            "chunk_duration_seconds": 60,
         }
 
         # Conecta os sinais dos widgets (da UI) aos slots (métodos de lógica)
@@ -420,6 +512,10 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
         if not screen:
             # Se não for possível determinar a tela, usa a primária como fallback
             screen = QApplication.primaryScreen()
+
+        if not screen:
+            # Se ainda assim não houver tela, não podemos centralizar
+            return
 
         # Obtém a geometria da tela disponível
         screen_geometry = screen.availableGeometry()
@@ -583,7 +679,11 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
         channels_to_use = min(channels, 2)
         apply_processing = self.processing_checkbox.isChecked()
         self.recording_thread = RecordingThread(
-            device_index, channels_to_use, self.output_path, apply_processing
+            device_index,
+            channels_to_use,
+            self.output_path,
+            apply_processing,
+            self.whisper_settings["chunk_duration_seconds"],
         )
         self.recording_thread.status_update.connect(self.update_status)
         self.recording_thread.recording_error.connect(self.show_error_message)
@@ -813,6 +913,22 @@ class FastWhisperSettingsDialog(QDialog):
             ),
         )
 
+        self.chunk_duration_spinbox = QSpinBox()
+        self.chunk_duration_spinbox.setRange(10, 300)  # Min 10s, Max 300s (5 min)
+        self.chunk_duration_spinbox.setSingleStep(10)
+        self.chunk_duration_spinbox.setValue(
+            self.settings.get("chunk_duration_seconds", 60)
+        )
+        self.form_layout.addRow(
+            "Duração do Trecho (segundos):", self.chunk_duration_spinbox
+        )
+        self.form_layout.addRow(
+            "",
+            create_wrapping_label(
+                "Tempo em segundos para quebrar arquivos de áudio/gravações."
+            ),
+        )
+
         # --- Botões ---
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
@@ -843,7 +959,7 @@ class FastWhisperSettingsDialog(QDialog):
         self.condition_checkbox.setChecked(True)
         self.temperature_slider.setValue(0)
         self.initial_prompt_edit.clear()
-        self.acceleration_spinbox.setValue(1.5)
+        self.acceleration_spinbox.setValue(1.25)
 
         if gpu_available:
             assert torch is not None
@@ -927,6 +1043,7 @@ class FastWhisperSettingsDialog(QDialog):
         )
         self.settings["initial_prompt"] = self.initial_prompt_edit.text()
         self.settings["acceleration_factor"] = self.acceleration_spinbox.value()
+        self.settings["chunk_duration_seconds"] = self.chunk_duration_spinbox.value()
         return self.settings
 
 

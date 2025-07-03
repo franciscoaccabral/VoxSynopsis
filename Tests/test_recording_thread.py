@@ -7,7 +7,7 @@ from vox_synopsis_fast_whisper import RecordingThread
 
 def test_process_audio_creates_file(tmp_path, monkeypatch):
     audio_data = np.ones(48000, dtype=np.float32)
-    thread = RecordingThread(0, 1, str(tmp_path), True)
+    thread = RecordingThread(0, 1, str(tmp_path), True, 60)
 
     def fake_reduce_noise(*args, **kwargs):
         return audio_data

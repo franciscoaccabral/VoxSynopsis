@@ -20,6 +20,7 @@ To maintain high code quality and prevent common issues, please adhere to the fo
 
 *   **Ruff Configuration:** Ensure `ruff` configurations in `pyproject.toml` are correctly placed. `line-length` should be directly under `[tool.ruff]`, not `[tool.ruff.lint]`.
 *   **Line Length (`E501`):** Always keep lines within the configured limit (currently 88 characters). Break long lines into multiple, more readable lines.
+*   **Blank Lines (`W293`):** Ensure blank lines do not contain any whitespace.
 *   **Type Hinting and `pyright`:**
     *   **Initialize Variables:** Always initialize variables that might be conditionally assigned (e.g., `model = None`) to avoid `possibly unbound variable` errors.
     *   **PyQt5 Method Overrides:** When overriding PyQt5 methods (e.g., `closeEvent`), if `pyright` reports `incompatible method override` errors despite correct signature, consider adding `# type: ignore` to the method definition as a last resort.

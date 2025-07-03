@@ -70,7 +70,7 @@ class Ui_MainWindow(object):
         status_layout.addRow("Status:", self.status_label)
         self.total_time_label = QLabel("00:00:00")
         status_layout.addRow("Tempo Total Gravado:", self.total_time_label)
-        self.chunk_time_label = QLabel("60.0s")  # Valor inicial
+        self.chunk_time_label = QLabel("0.0s")
         status_layout.addRow("Tempo Restante no Trecho:", self.chunk_time_label)
         self.volume_bar = QProgressBar()
         self.volume_bar.setRange(0, 100)
