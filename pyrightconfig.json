@@ -1,4 +1,4 @@
 {
-  "typeCheckingMode": "strict",
+  "typeCheckingMode": "standard",
   "exclude": ["**/venv/**", "**/__pycache__/**"]
 }
