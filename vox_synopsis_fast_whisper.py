@@ -48,7 +48,10 @@ OUTPUT_DIR = "gravacoes"
 
 
 # --- Função para carregar o stylesheet ---
-def load_stylesheet(app):
+from typing import Any
+
+
+def load_stylesheet(app: Any) -> None:
     try:
         with open("style.qss", "r") as f:
             app.setStyleSheet(f.read())
@@ -61,7 +64,13 @@ class RecordingThread(QThread):
     status_update = pyqtSignal(dict)
     recording_error = pyqtSignal(str)
 
-    def __init__(self, device_index, channels, output_path, apply_processing):
+    def __init__(
+        self,
+        device_index: int,
+        channels: int,
+        output_path: str,
+        apply_processing: bool,
+    ) -> None:
         super().__init__()
         self.device_index = device_index
         self.channels = channels
@@ -120,7 +129,7 @@ class RecordingThread(QThread):
             print(error_message)
             self.recording_error.emit(error_message)
 
-    def process_audio(self, original_filepath, audio_data):
+    def process_audio(self, original_filepath: str, audio_data: np.ndarray) -> None:
         try:
             print(f"Aplicando pós-processamento em {original_filepath}...")
             noise_sample_len = int(0.5 * SAMPLE_RATE)
@@ -157,7 +166,7 @@ class TranscriptionThread(QThread):
     update_transcription = pyqtSignal(str)
     transcription_finished = pyqtSignal(str)
 
-    def __init__(self, audio_folder, whisper_settings):
+    def __init__(self, audio_folder: str, whisper_settings: dict[str, Any]) -> None:
         super().__init__()
         self.audio_folder = audio_folder
         self.whisper_settings = whisper_settings.copy()
@@ -859,7 +868,7 @@ class FastWhisperSettingsDialog(QDialog):
         self.best_of_label.setText(f"Best Of: {self.best_of_slider.value()}")
         self.beam_size_label.setText(f"Beam Size: {self.beam_size_slider.value()}")
 
-    def get_settings(self):
+    def get_settings(self) -> dict[str, Any]:
         self.settings["model"] = self.model_combo.currentText()
         self.settings["language"] = self.language_combo.currentText()
         self.settings["device"] = self.device_combo.currentText()
