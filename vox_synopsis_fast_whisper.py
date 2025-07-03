@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import time
+from typing import Any
 
 import noisereduce as nr
 import numpy as np
@@ -48,7 +49,6 @@ OUTPUT_DIR = "gravacoes"
 
 
 # --- Função para carregar o stylesheet ---
-from typing import Any
 
 
 def load_stylesheet(app: Any) -> None:
@@ -640,7 +640,9 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
 # --- Diálogo de Configurações (sem alteração) ---
 class FastWhisperSettingsDialog(QDialog):
     # ... (lógica do diálogo de configurações permanece a mesma)
-    def __init__(self, current_settings: dict[str, Any], parent: QWidget | None = None) -> None:
+    def __init__(
+        self, current_settings: dict[str, Any], parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Configurações do FastWhisper")
         self.setFixedSize(600, 650)
