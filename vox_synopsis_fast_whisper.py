@@ -13,7 +13,7 @@ import sounddevice as sd
 import soundfile as sf
 from faster_whisper import WhisperModel
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
-from PyQt5.QtGui import QCloseEvent
+from PyQt5.QtGui import QCloseEvent, QCursor
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -23,6 +23,7 @@ from PyQt5.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -413,6 +414,30 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
         self.resource_timer.timeout.connect(self.update_resource_usage)
         self.resource_timer.start()
 
+    def center_window(self):
+        # Obtém a tela onde o cursor do mouse está
+        screen = QApplication.screenAt(QCursor.pos())
+        if not screen:
+            # Se não for possível determinar a tela, usa a primária como fallback
+            screen = QApplication.primaryScreen()
+
+        # Obtém a geometria da tela disponível
+        screen_geometry = screen.availableGeometry()
+        # Obtém a geometria da janela
+        window_geometry = self.frameGeometry()
+        # Move o centro da janela para o centro da tela
+        window_geometry.moveCenter(screen_geometry.center())
+        # Move o canto superior esquerdo da janela para a nova posição
+        self.move(window_geometry.topLeft())
+
+    def showEvent(self, event):  # type: ignore[override]
+        # Chama o método original para garantir o comportamento padrão
+        super().showEvent(event)
+        # Centraliza a janela apenas na primeira vez que ela é exibida
+        if not hasattr(self, '_is_centered'):
+            self.center_window()
+            self._is_centered = True
+
     def connect_signals(self):
         """Conecta todos os sinais da UI aos seus respectivos slots."""
         self.browse_button.clicked.connect(self.browse_folder)
@@ -645,17 +670,30 @@ class FastWhisperSettingsDialog(QDialog):
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Configurações do FastWhisper")
-        self.setFixedSize(600, 650)
         self.settings = current_settings.copy()
 
         self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(10, 10, 10, 10)
+
+        # Scroll Area para o conteúdo
         scroll_area = QScrollArea(self)
         scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.NoFrame)  # Remove a borda
         self.main_layout.addWidget(scroll_area)
-        scroll_content = QWidget()
-        self.form_layout = QFormLayout(scroll_content)
-        scroll_area.setWidget(scroll_content)
 
+        # Container para o formulário
+        form_container = QWidget()
+        self.form_layout = QFormLayout(form_container)
+        self.form_layout.setContentsMargins(10, 10, 10, 10)
+        self.form_layout.setSpacing(15)
+        scroll_area.setWidget(form_container)
+
+        def create_wrapping_label(text: str) -> QLabel:
+            label = QLabel(text)
+            label.setWordWrap(True)
+            return label
+
+        # --- Controles do Formulário ---
         self.model_combo = QComboBox()
         self.model_combo.addItems(
             ["tiny", "base", "small", "medium", "large-v2", "large-v3"]
@@ -664,11 +702,9 @@ class FastWhisperSettingsDialog(QDialog):
         self.form_layout.addRow("Modelo:", self.model_combo)
         self.form_layout.addRow(
             "",
-            QLabel(
-                (
-                    "Modelos maiores são mais precisos, porém mais lentos. "
-                    "'large-v3' é o mais preciso."
-                )
+            create_wrapping_label(
+                "Modelos maiores são mais precisos, porém mais lentos. "
+                "'large-v3' é o mais preciso."
             ),
         )
 
@@ -679,7 +715,9 @@ class FastWhisperSettingsDialog(QDialog):
             self.device_combo.model().item(1).setEnabled(False)  # type: ignore[attr-defined]
         self.device_combo.setCurrentText(self.settings.get("device", "cpu"))
         self.form_layout.addRow("Dispositivo:", self.device_combo)
-        self.form_layout.addRow("", QLabel("'cuda' (GPU) é muito mais rápido."))
+        self.form_layout.addRow(
+            "", create_wrapping_label("'cuda' (GPU) é muito mais rápido.")
+        )
 
         self.compute_type_combo = QComboBox()
         if gpu_available:
@@ -694,11 +732,9 @@ class FastWhisperSettingsDialog(QDialog):
         self.form_layout.addRow("Tipo de Computação:", self.compute_type_combo)
         self.form_layout.addRow(
             "",
-            QLabel(
-                (
-                    "'int8' é o mais rápido (CPU). "
-                    "'int8_float16' é o ideal para GPUs (velocidade/precisão)."
-                )
+            create_wrapping_label(
+                "'int8' é o mais rápido (CPU). "
+                "'int8_float16' é o ideal para GPUs (velocidade/precisão)."
             ),
         )
 
@@ -707,11 +743,9 @@ class FastWhisperSettingsDialog(QDialog):
         self.form_layout.addRow("", self.vad_filter_checkbox)
         self.form_layout.addRow(
             "",
-            QLabel(
-                (
-                    "Detecta e pula partes sem fala no áudio, "
-                    "acelerando muito a transcrição."
-                )
+            create_wrapping_label(
+                "Detecta e pula partes sem fala no áudio, "
+                "acelerando muito a transcrição."
             ),
         )
 
@@ -720,7 +754,10 @@ class FastWhisperSettingsDialog(QDialog):
         self.language_combo.setCurrentText(self.settings.get("language", "pt"))
         self.form_layout.addRow("Idioma:", self.language_combo)
         self.form_layout.addRow(
-            "", QLabel("Idioma do áudio. 'auto' para detecção automática.")
+            "",
+            create_wrapping_label(
+                "Idioma do áudio. 'auto' para detecção automática."
+            ),
         )
 
         self.temperature_slider = QSlider(Qt.Horizontal)  # type: ignore[attr-defined]
@@ -764,16 +801,19 @@ class FastWhisperSettingsDialog(QDialog):
         self.acceleration_spinbox.setRange(1.0, 5.0)
         self.acceleration_spinbox.setSingleStep(0.1)
         self.acceleration_spinbox.setValue(
-            self.settings.get("acceleration_factor", 1.5)
+            self.settings.get("acceleration_factor", 1.25)
         )
         self.form_layout.addRow(
             "Fator de Aceleração (Vídeo):", self.acceleration_spinbox
         )
         self.form_layout.addRow(
             "",
-            QLabel("Velocidade do áudio extraído de arquivos de vídeo. 1.0 = normal."),
+            create_wrapping_label(
+                "Velocidade do áudio extraído de arquivos de vídeo. 1.0 = normal."
+            ),
         )
 
+        # --- Botões ---
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
         )
@@ -783,6 +823,9 @@ class FastWhisperSettingsDialog(QDialog):
         self.auto_cfg_button.clicked.connect(self.auto_configure)
         self.button_box.addButton(self.auto_cfg_button, QDialogButtonBox.ActionRole)
         self.main_layout.addWidget(self.button_box)
+
+        # Define um tamanho inicial razoável
+        self.resize(600, 400)
 
     def auto_configure(self):
         total_ram_gb = psutil.virtual_memory().total / (1024**3)
