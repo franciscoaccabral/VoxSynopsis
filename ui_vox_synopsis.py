@@ -1,7 +1,18 @@
+from PyQt5.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QProgressBar,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QComboBox, 
-                             QProgressBar, QLineEdit, QCheckBox, QTextEdit, QGroupBox, QFormLayout)
-from PyQt5.QtCore import Qt
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -27,7 +38,9 @@ class Ui_MainWindow(object):
         path_layout.addWidget(self.browse_button)
         config_layout.addRow("Pasta de Saída:", path_layout)
 
-        self.processing_checkbox = QCheckBox("Aplicar pós-processamento (redução de ruído)")
+        self.processing_checkbox = QCheckBox(
+            "Aplicar pós-processamento (redução de ruído)"
+        )
         self.processing_checkbox.setChecked(True)
         config_layout.addRow(self.processing_checkbox)
 
@@ -56,7 +69,7 @@ class Ui_MainWindow(object):
         status_layout.addRow("Status:", self.status_label)
         self.total_time_label = QLabel("00:00:00")
         status_layout.addRow("Tempo Total Gravado:", self.total_time_label)
-        self.chunk_time_label = QLabel("60.0s") # Valor inicial
+        self.chunk_time_label = QLabel("60.0s")  # Valor inicial
         status_layout.addRow("Tempo Restante no Trecho:", self.chunk_time_label)
         self.volume_bar = QProgressBar()
         self.volume_bar.setRange(0, 100)
