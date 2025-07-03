@@ -1,0 +1,9 @@
+PyQt5
+sounddevice
+numpy
+soundfile
+noisereduce
+scipy
+faster-whisper
+psutil
+torch
