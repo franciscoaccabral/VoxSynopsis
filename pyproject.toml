@@ -1,10 +1,11 @@
 [tool.ruff]
+# Define o comprimento máximo da linha
+line-length = 88
+
+[tool.ruff.lint]
 # Habilita as regras do Pyflakes (F), pycodestyle (E, W), e isort (I)
 select = ["E", "F", "W", "I"]
 ignore = []
-
-# Define o comprimento máximo da linha
-line-length = 88
 
 [tool.ruff.format]
 # Usa o formatador Black
