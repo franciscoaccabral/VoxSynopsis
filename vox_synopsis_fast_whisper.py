@@ -640,7 +640,7 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
 # --- Diálogo de Configurações (sem alteração) ---
 class FastWhisperSettingsDialog(QDialog):
     # ... (lógica do diálogo de configurações permanece a mesma)
-    def __init__(self, current_settings, parent=None):
+    def __init__(self, current_settings: dict[str, Any], parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Configurações do FastWhisper")
         self.setFixedSize(600, 650)

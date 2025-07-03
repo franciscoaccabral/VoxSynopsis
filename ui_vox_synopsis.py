@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMainWindow,
     QProgressBar,
     QPushButton,
     QTextEdit,
@@ -15,7 +16,7 @@ from PyQt5.QtWidgets import (
 
 
 class Ui_MainWindow(object):
-    def setupUi(self, MainWindow):
+    def setupUi(self, MainWindow: QMainWindow) -> None:
         MainWindow.setObjectName("MainWindow")
         MainWindow.setWindowTitle("VoxSynopsis (FastWhisper)")
         MainWindow.setGeometry(100, 100, 600, 750)
