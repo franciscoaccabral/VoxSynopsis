@@ -30,7 +30,19 @@ def test_process_audio_creates_file(tmp_path, monkeypatch):
         raising=False,
     )
     thread.process_audio(str(tmp_path / "input.wav"), audio_data)
-    expected = tmp_path / "input_processed.wav"
-    assert written["path"] == str(expected)
-    assert np.array_equal(written["data"], audio_data)
+
+    # Calcula o áudio esperado após a normalização,
+    # espelhando a lógica da função original.
+    peak_level = np.max(np.abs(audio_data))
+    if peak_level > 0:
+        target_peak_dbfs = -1.0
+        target_peak_linear = 10 ** (target_peak_dbfs / 20.0)
+        normalization_factor = target_peak_linear / peak_level
+        expected_audio = audio_data * normalization_factor
+    else:
+        expected_audio = audio_data
+
+    expected_path = tmp_path / "input_processed.wav"
+    assert written["path"] == str(expected_path)
+    assert np.allclose(written["data"], expected_audio)
     assert written["sr"] == 48000
