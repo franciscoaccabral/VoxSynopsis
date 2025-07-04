@@ -1,6 +1,7 @@
 import datetime
 import glob
 import os
+import re
 import subprocess
 import sys
 import time
@@ -273,304 +274,172 @@ class TranscriptionThread(QThread):
                 return []
         return chunk_files
 
-    def _split_audio_with_pydub(self, filepath: str) -> list[str]:
-        from pydub import AudioSegment
-        from pydub.silence import split_on_silence
-
+    def _split_audio_with_ffmpeg_silence(
+        self, filepath: str, target_chunk_duration: int
+    ) -> list[str]:
         base_name = os.path.splitext(os.path.basename(filepath))[0]
         output_dir = os.path.dirname(filepath)
-        chunk_prefix = os.path.join(output_dir, f"{base_name}_pydub_chunk_")
+        chunk_prefix = os.path.join(output_dir, f"{base_name}_silence_chunk_")
         chunk_files = []
 
+        # 1. Detectar silêncios e gravar timestamps
+        self.update_status.emit({
+            "text": f"Detectando silêncios em {os.path.basename(filepath)} com FFmpeg..."
+        })
+        silence_cmd = [
+            "ffmpeg", "-i", filepath, "-af",
+            "silencedetect=noise=-35dB:d=0.7",
+            "-f", "null", "-",
+        ]
         try:
+            # A saída do silencedetect vai para o stderr
+            result = subprocess.run(
+                silence_cmd, capture_output=True, text=True, check=True
+            )
+            ffmpeg_output = result.stderr
+        except subprocess.CalledProcessError as e:
+            ffmpeg_output = e.stderr
+            if "No such file or directory" in ffmpeg_output:
+                self.update_status.emit({"text": f"Erro: Arquivo não encontrado - {filepath}"})
+                return []
+        except FileNotFoundError:
+            self.update_status.emit({"text": "Erro: FFmpeg não encontrado."})
+            return []
+
+        # 2. Analisar os timestamps de silêncio
+        silence_starts = [float(t) for t in re.findall(r"silence_start: (\d+\.?\d*)", ffmpeg_output)]
+        if not silence_starts:
             self.update_status.emit({
-                "text": f"Carregando {os.path.basename(filepath)} com pydub...",
-                "last_time": 0, "total_time": 0
+                "text": f"Nenhum silêncio detectado em {os.path.basename(filepath)}. Usando divisão por tempo."
             })
-            audio = AudioSegment.from_file(filepath)
-            self.update_status.emit(
-                {
-                    "text": (
-                        f"Dividindo {os.path.basename(filepath)} por silêncio "
-                        f"(limiar: {self.silence_threshold_dbfs}dBFS, "
-                        f"min_duração: {self.min_silence_duration_ms}ms)..."
-                    ),
-                    "last_time": 0,
-                    "total_time": 0,
-                }
-            )
+            return self._split_audio_with_ffmpeg(filepath, target_chunk_duration)
 
-            segments = split_on_silence(
-                audio,
-                min_silence_len=self.min_silence_duration_ms,
-                silence_thresh=self.silence_threshold_dbfs,
-                keep_silence=250  # Keep a bit of silence at the start/end of chunks
-            )
-
-            if not segments:
-                self.update_status.emit(
-                    {
-                        "text": (
-                            f"Nenhum segmento de fala detectado em "
-                            f"{os.path.basename(filepath)} com pydub. "
-                            "Usando arquivo original."
-                        ),
-                        "last_time": 0,
-                        "total_time": 0,
-                    }
-                )
-                # Fallback: if no silence is detected, or the audio is too short,
-                # try to process the whole file or split it with ffmpeg if too long
-                if (
-                    len(audio) / 1000.0
-                    > self.smart_chunk_duration_seconds * 1.1
-                ):  # Add 10% margin
-                    return self._split_audio_with_ffmpeg(
-                        filepath, self.smart_chunk_duration_seconds
-                    )
-                return [filepath]
-
-
-            processed_chunk_idx = 0
-            for i, segment in enumerate(segments):
-                if len(segment) / 1000.0 > self.smart_chunk_duration_seconds:
-                    # If a speech segment is longer than smart_chunk_duration_seconds,
-                    # split it further into pieces of max smart_chunk_duration_seconds
-                    max_len_ms = self.smart_chunk_duration_seconds * 1000
-                    num_sub_chunks = int(len(segment) / max_len_ms) + 1
-                    for j in range(num_sub_chunks):
-                        start_ms = j * max_len_ms
-                        end_ms = (j + 1) * max_len_ms
-                        sub_segment = segment[start_ms:end_ms]
-                        if len(sub_segment) > 500:  # Avoid very small sub-chunks
-                            chunk_filepath = (
-                                f"{chunk_prefix}{processed_chunk_idx:03d}.wav"
-                            )
-                            sub_segment.export(
-                                chunk_filepath,
-                                format="wav",
-                                parameters=["-ar", "16000", "-ac", "1"],
-                            )
-                            chunk_files.append(chunk_filepath)
-                            processed_chunk_idx += 1
-                else:
-                    if len(segment) > 500:  # Avoid very small chunks
-                        chunk_filepath = (
-                            f"{chunk_prefix}{processed_chunk_idx:03d}.wav"
-                        )
-                        segment.export(
-                            chunk_filepath,
-                            format="wav",
-                            parameters=["-ar", "16000", "-ac", "1"],
-                        )
-                        chunk_files.append(chunk_filepath)
-                        processed_chunk_idx += 1
-
-            if not chunk_files:  # If all segments were too short
-                self.update_status.emit(
-                    {
-                        "text": (
-                            f"Segmentos de {os.path.basename(filepath)} muito curtos "
-                            "após divisão por silêncio. Usando arquivo original."
-                        ),
-                        "last_time": 0,
-                        "total_time": 0,
-                    }
-                )
-                if (
-                    len(audio) / 1000.0
-                    > self.smart_chunk_duration_seconds * 1.1
-                ):
-                    return self._split_audio_with_ffmpeg(
-                        filepath, self.smart_chunk_duration_seconds
-                    )
-                return [filepath]
-
-
-        except ImportError:
-            self.update_status.emit(
-                {
-                    "text": (
-                        "Erro: pydub não instalado. 'pip install pydub'. "
-                        "Usando divisão FFmpeg."
-                    ),
-                    "last_time": 0,
-                    "total_time": 0,
-                }
-            )
-            return self._split_audio_with_ffmpeg(
-                filepath, self.regular_chunk_duration_seconds
-            )
+        # 3. Calcular pontos de corte (lógica "60s ± silêncio")
+        try:
+            duration_str = subprocess.check_output([
+                "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1", filepath
+            ]).decode("utf-8").strip()
+            total_duration = float(duration_str)
         except Exception as e:
-            self.update_status.emit(
-                {
-                    "text": (
-                        f"Erro ao dividir {os.path.basename(filepath)} com pydub: {e}. "
-                        "Usando divisão FFmpeg."
-                    ),
-                    "last_time": 0,
-                    "total_time": 0,
-                }
-            )
-            # Fallback to ffmpeg splitting if pydub fails for any reason
-            return self._split_audio_with_ffmpeg(
-                filepath, self.regular_chunk_duration_seconds
-            )
+            self.update_status.emit({"text": f"Erro ao obter duração do arquivo: {e}"})
+            return [filepath] # Retorna o arquivo original se não conseguir obter a duração
 
-        if not chunk_files:  # Final check if pydub produced no usable chunks
-            self.update_status.emit(
-                {
-                    "text": (
-                        f"Pydub não produziu chunks para {os.path.basename(filepath)}. "
-                        "Tentando com FFmpeg."
-                    ),
-                    "last_time": 0,
-                    "total_time": 0,
-                }
-            )
-            return self._split_audio_with_ffmpeg(
-                filepath, self.regular_chunk_duration_seconds
-            )
+        cut_points = []
+        current_pos = 0.0
+        while current_pos < total_duration:
+            next_target = current_pos + target_chunk_duration
+            if next_target >= total_duration:
+                cut_points.append(total_duration)
+                break
+
+            # Encontra o primeiro silêncio após o nosso alvo de 60s
+            best_cut = -1.0
+            for start_time in silence_starts:
+                if start_time > next_target:
+                    best_cut = start_time
+                    break
+            
+            # Se encontrou um ponto de corte, usa. Senão, corta no alvo.
+            cut_point = best_cut if best_cut != -1.0 else next_target
+            cut_points.append(cut_point)
+            current_pos = cut_point
+
+        # 4. Criar os chunks com base nos pontos de corte
+        last_start = 0.0
+        for i, end_time in enumerate(cut_points):
+            chunk_filepath = f"{chunk_prefix}{i:03d}.wav"
+            self.update_status.emit({
+                "text": f"Criando chunk {i+1}/{len(cut_points)} (duração: {end_time - last_start:.2f}s)..."
+            })
+            cut_cmd = [
+                "ffmpeg", "-i", filepath,
+                "-ss", str(last_start),
+                "-to", str(end_time),
+                "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                chunk_filepath, "-y"
+            ]
+            try:
+                subprocess.run(cut_cmd, check=True, capture_output=True, text=True)
+                chunk_files.append(chunk_filepath)
+            except subprocess.CalledProcessError as e:
+                self.update_status.emit({"text": f"Erro ao criar chunk: {e.stderr}"})
+                # Não retorna aqui, tenta criar os outros chunks
+            last_start = end_time
 
         return chunk_files
 
     def _get_files_to_transcribe(self) -> list[str]:
-        all_files_to_process = []
-        # MP4 processing (extract audio, accelerate)
-        mp4_files = sorted(glob.glob(os.path.join(self.audio_folder, "*.mp4")))
-        acceleration_factor = self.whisper_settings.get(
-            "acceleration_factor", 1.25
-        )  # Get it here
-
-        for mp4_path in mp4_files:
-            base_name = os.path.splitext(os.path.basename(mp4_path))[0]
-            # Use a more descriptive name for accelerated audio
-            accelerated_wav_path = os.path.join(
-                self.audio_folder,
-                f"{base_name}_extracted_accelerated_{acceleration_factor}x.wav",
-            )
-
-            if not os.path.exists(accelerated_wav_path):
-                self.update_status.emit(
-                    {
-                        "text": (
-                            "Extraindo e acelerando áudio de "
-                            f"{os.path.basename(mp4_path)}..."
-                        ),
-                        "last_time": 0,
-                        "total_time": 0,
-                    }
-                )
-                try:
-                    command = [
-                        "ffmpeg",
-                        "-i",
-                        mp4_path,
-                        "-vn",
-                        "-acodec",
-                        "pcm_s16le",
-                        "-ar",
-                        "16000",
-                        "-ac",
-                        "1",
-                        "-filter:a",
-                        f"atempo={acceleration_factor}",
-                        accelerated_wav_path,
-                        "-y",
-                    ]
-                    subprocess.run(command, check=True, capture_output=True, text=True)
-                    all_files_to_process.append(accelerated_wav_path)
-                except subprocess.CalledProcessError as e:
-                    error_text = (
-                        f"Erro (ffmpeg) ao processar {os.path.basename(mp4_path)}: "
-                        f"{e.stderr}"
-                    )
-                    self.update_status.emit(
-                        {
-                            "text": error_text,
-                            "last_time": 0,
-                            "total_time": 0,
-                        }
-                    )
-                    continue
-                except FileNotFoundError:
-                    self.update_status.emit({
-                        "text": "Erro: FFmpeg não encontrado. Verifique a instalação.",
-                        "last_time": 0, "total_time": 0
-                    })
-                    return [] # Critical error, stop processing
-            else:
-                all_files_to_process.append(accelerated_wav_path)
-
-        # Add WAV files (processed and original, avoiding duplicates)
-        processed_wavs = sorted(
-            glob.glob(os.path.join(self.audio_folder, "*_processed.wav"))
-        )
-        original_wavs = sorted(glob.glob(os.path.join(self.audio_folder, "*.wav")))
-
-        all_files_to_process.extend(processed_wavs)
-
-        # Avoid adding original wavs if a processed version or an accelerated
-        # version exists. Also avoid adding chunk files from previous runs if any.
-        processed_or_accelerated_originals = set()
-        for f_path in processed_wavs:
-            processed_or_accelerated_originals.add(
-                f_path.replace("_processed.wav", ".wav")
-            )
-        for f_path in all_files_to_process:  # Check files from MP4 extraction too
-            if "_extracted_accelerated_" in f_path:
-                original_mp4_base = f_path.split("_extracted_accelerated_")[0]
-                processed_or_accelerated_originals.add(original_mp4_base + ".wav")
-
-        for wav_file in original_wavs:
-            is_chunk_file = "_chunk_" in wav_file  # Simple check for chunk files
-            is_accelerated_file = "_extracted_accelerated_" in wav_file
-            if (
-                wav_file not in processed_or_accelerated_originals
-                and not wav_file.endswith("_processed.wav")
-                and not is_chunk_file
-                and not is_accelerated_file
-            ):
-                all_files_to_process.append(wav_file)
-
-        # Remove duplicates and sort
-        all_files_to_process = sorted(list(set(all_files_to_process)))
-
-        # Now, apply chunking strategy
+        # --- Novo Fluxo de Trabalho Refatorado ---
+        files_to_process = []
         final_files_for_transcription = []
-        for filepath_to_chunk in all_files_to_process:
-            if self.enable_smart_chunking:
-                self.update_status.emit(
-                    {
-                        "text": (
-                            "Aplicando divisão inteligente em "
-                            f"{os.path.basename(filepath_to_chunk)}..."
-                        ),
-                        "last_time": 0,
-                        "total_time": 0,
-                    }
+
+        # 1. Coletar todos os arquivos de mídia (MP4 e WAV)
+        all_media_files = sorted(glob.glob(os.path.join(self.audio_folder, "*.mp4"))) \
+                        + sorted(glob.glob(os.path.join(self.audio_folder, "*.wav")))
+
+        # Filtra arquivos que já são chunks ou processados para evitar reprocessamento
+        all_media_files = [f for f in all_media_files if "_chunk_" not in os.path.basename(f)]
+        all_media_files = [f for f in all_media_files if "_processed" not in os.path.basename(f)]
+        all_media_files = [f for f in all_media_files if "_accelerated" not in os.path.basename(f)]
+
+        for media_path in all_media_files:
+            # 2. Extrair áudio de MP4 para um WAV temporário (sem acelerar)
+            if media_path.lower().endswith(".mp4"):
+                base_name = os.path.splitext(os.path.basename(media_path))[0]
+                extracted_wav_path = os.path.join(self.audio_folder, f"{base_name}_extracted.wav")
+                if not os.path.exists(extracted_wav_path):
+                    self.update_status.emit({"text": f"Extraindo áudio de {os.path.basename(media_path)}..."})
+                    try:
+                        extract_cmd = [
+                            "ffmpeg", "-i", media_path, "-vn", "-acodec", "pcm_s16le",
+                            "-ar", "16000", "-ac", "1", extracted_wav_path, "-y"
+                        ]
+                        subprocess.run(extract_cmd, check=True, capture_output=True, text=True)
+                        files_to_process.append(extracted_wav_path)
+                    except Exception as e:
+                        self.update_status.emit({"text": f"Erro ao extrair áudio: {e}"})
+                        continue
+                else:
+                    files_to_process.append(extracted_wav_path)
+            elif media_path.lower().endswith(".wav"):
+                files_to_process.append(media_path)
+
+        # 3. Dividir os arquivos de áudio usando a detecção de silêncio do FFmpeg
+        chunks_to_accelerate = []
+        for audio_file in files_to_process:
+            self.update_status.emit({"text": f"Dividindo {os.path.basename(audio_file)} por silêncio..."})
+            chunks = self._split_audio_with_ffmpeg_silence(
+                audio_file, self.smart_chunk_duration_seconds
+            )
+            chunks_to_accelerate.extend(chunks)
+
+        # 4. Acelerar cada chunk individualmente
+        acceleration_factor = self.whisper_settings.get("acceleration_factor", 1.0)
+        if acceleration_factor > 1.0:
+            for chunk_path in chunks_to_accelerate:
+                base_name = os.path.splitext(os.path.basename(chunk_path))[0]
+                accelerated_chunk_path = os.path.join(
+                    self.audio_folder, f"{base_name}_accelerated_{acceleration_factor}x.wav"
                 )
-                chunks = self._split_audio_with_pydub(filepath_to_chunk)
-                final_files_for_transcription.extend(chunks)
-            # Check if regular chunking should be applied (chunk_duration > 0)
-            elif self.regular_chunk_duration_seconds > 0:
-                self.update_status.emit(
-                    {
-                        "text": (
-                            f"Aplicando divisão FFmpeg "
-                            f"({self.regular_chunk_duration_seconds}s) em "
-                            f"{os.path.basename(filepath_to_chunk)}..."
-                        ),
-                        "last_time": 0,
-                        "total_time": 0,
-                    }
-                )
-                chunks = self._split_audio_with_ffmpeg(
-                    filepath_to_chunk, self.regular_chunk_duration_seconds
-                )
-                final_files_for_transcription.extend(chunks)
-            else:  # No chunking, transcribe whole file
-                final_files_for_transcription.append(filepath_to_chunk)
+                if not os.path.exists(accelerated_chunk_path):
+                    self.update_status.emit({"text": f"Acelerando chunk {os.path.basename(chunk_path)}..."})
+                    try:
+                        accel_cmd = [
+                            "ffmpeg", "-i", chunk_path, "-filter:a",
+                            f"atempo={acceleration_factor}", accelerated_chunk_path, "-y"
+                        ]
+                        subprocess.run(accel_cmd, check=True, capture_output=True, text=True)
+                        final_files_for_transcription.append(accelerated_chunk_path)
+                    except Exception as e:
+                        self.update_status.emit({"text": f"Erro ao acelerar chunk: {e}"})
+                        # Se a aceleração falhar, usa o chunk original
+                        final_files_for_transcription.append(chunk_path)
+                else:
+                    final_files_for_transcription.append(accelerated_chunk_path)
+        else:
+            # Se não houver aceleração, usa os chunks originais
+            final_files_for_transcription.extend(chunks_to_accelerate)
 
         return sorted(list(set(final_files_for_transcription)))
 
