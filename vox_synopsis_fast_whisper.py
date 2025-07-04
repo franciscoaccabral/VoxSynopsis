@@ -181,89 +181,417 @@ class TranscriptionThread(QThread):
         self.whisper_settings = whisper_settings.copy()
         self._is_running = True
 
-    def _split_audio_into_chunks(self, filepath: str, chunk_duration: int) -> list[str]:
+        # Smart chunking settings
+        self.enable_smart_chunking = self.whisper_settings.pop(
+            "enable_smart_chunking", False
+        )
+        self.smart_chunk_duration_seconds = self.whisper_settings.pop(
+            "smart_chunk_duration_seconds", 60
+        )
+        self.silence_threshold_dbfs = self.whisper_settings.pop(
+            "silence_threshold_dbfs", -40
+        )
+        self.min_silence_duration_ms = self.whisper_settings.pop(
+            "min_silence_duration_ms", 500
+        )
+        # Regular chunk duration for fallback or when smart chunking is off
+        self.regular_chunk_duration_seconds = self.whisper_settings.get(
+            "chunk_duration_seconds", 60
+        )
+
+
+    def _split_audio_with_ffmpeg(self, filepath: str, chunk_duration: int) -> list[str]:
         base_name = os.path.splitext(os.path.basename(filepath))[0]
         output_dir = os.path.dirname(filepath)
-        chunk_prefix = os.path.join(output_dir, f"{base_name}_chunk_")
+        chunk_prefix = os.path.join(output_dir, f"{base_name}_ffmpeg_chunk_")
+        chunk_files = []
 
-        # Get duration of the input file
         try:
             probe_command = [
-                "ffprobe",
-                "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
-                filepath,
+                "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1", filepath,
             ]
             duration_str = subprocess.check_output(probe_command, text=True).strip()
             total_duration = float(duration_str)
         except (subprocess.CalledProcessError, FileNotFoundError, ValueError) as e:
-            self.update_status.emit({
-                "text": (
-                    f"Erro ao obter duração do arquivo "
-                    f"{os.path.basename(filepath)}: {e}"
-                ),
-                "last_time": 0, "total_time": 0
-            })
+            self.update_status.emit(
+                {
+                    "text": (
+                        f"Erro (ffprobe) ao obter duração de "
+                        f"{os.path.basename(filepath)}: {e}"
+                    ),
+                    "last_time": 0,
+                    "total_time": 0,
+                }
+            )
             return []
 
         num_chunks = int(total_duration // chunk_duration) + (
             1 if total_duration % chunk_duration > 0 else 0
         )
-        chunk_files = []
+        # if total_duration is less than chunk_duration
+        if num_chunks == 0 and total_duration > 0:
+            num_chunks = 1
 
         for i in range(num_chunks):
             start_time = i * chunk_duration
-            chunk_filepath = f"{chunk_prefix}{i:03d}.wav"
+            # For the last chunk, ensure it doesn't try to read past the end of the file
+            current_chunk_duration = min(chunk_duration, total_duration - start_time)
+            if current_chunk_duration <=0: # Should not happen if logic is correct
+                break
 
+            chunk_filepath = f"{chunk_prefix}{i:03d}.wav"
             command = [
-                "ffmpeg",
-                "-i", filepath,
-                "-ss", str(start_time),
-                "-t", str(chunk_duration),
-                "-vn",
-                "-acodec", "pcm_s16le",
-                "-ar", "16000",
-                "-ac", "1",
-                chunk_filepath,
+                "ffmpeg", "-i", filepath, "-ss", str(start_time),
+                "-t", str(current_chunk_duration), "-vn", "-acodec", "pcm_s16le",
+                "-ar", "16000", "-ac", "1", chunk_filepath, "-y" # -y to overwrite
             ]
             try:
                 subprocess.run(command, check=True, capture_output=True, text=True)
                 chunk_files.append(chunk_filepath)
             except subprocess.CalledProcessError as e:
-                self.update_status.emit({
-                    "text": (
-                    f"Erro ao dividir o arquivo {os.path.basename(filepath)} "
-                    f"(chunk {i}): {e.stderr}"
-                ),
-                    "last_time": 0, "total_time": 0
-                })
+                self.update_status.emit(
+                    {
+                        "text": (
+                            f"Erro (ffmpeg) ao dividir {os.path.basename(filepath)} "
+                            f"(chunk {i}): {e.stderr}"
+                        ),
+                        "last_time": 0,
+                        "total_time": 0,
+                    }
+                )
+                # Clean up already created chunks for this file if one fails
+                for cf in chunk_files:
+                    if os.path.exists(cf):
+                        os.remove(cf)
                 return []
             except FileNotFoundError:
                 self.update_status.emit({
-                    "text": (
-                    "Erro: FFmpeg/FFprobe não encontrado. Certifique-se de que "
-                    "estão instalados e no PATH do sistema."
-                ),
+                    "text": "Erro: FFmpeg não encontrado. Verifique a instalação.",
                     "last_time": 0, "total_time": 0
                 })
                 return []
         return chunk_files
 
+    def _split_audio_with_pydub(self, filepath: str) -> list[str]:
+        from pydub import AudioSegment
+        from pydub.silence import split_on_silence
+
+        base_name = os.path.splitext(os.path.basename(filepath))[0]
+        output_dir = os.path.dirname(filepath)
+        chunk_prefix = os.path.join(output_dir, f"{base_name}_pydub_chunk_")
+        chunk_files = []
+
+        try:
+            self.update_status.emit({
+                "text": f"Carregando {os.path.basename(filepath)} com pydub...",
+                "last_time": 0, "total_time": 0
+            })
+            audio = AudioSegment.from_file(filepath)
+            self.update_status.emit(
+                {
+                    "text": (
+                        f"Dividindo {os.path.basename(filepath)} por silêncio "
+                        f"(limiar: {self.silence_threshold_dbfs}dBFS, "
+                        f"min_duração: {self.min_silence_duration_ms}ms)..."
+                    ),
+                    "last_time": 0,
+                    "total_time": 0,
+                }
+            )
+
+            segments = split_on_silence(
+                audio,
+                min_silence_len=self.min_silence_duration_ms,
+                silence_thresh=self.silence_threshold_dbfs,
+                keep_silence=250  # Keep a bit of silence at the start/end of chunks
+            )
+
+            if not segments:
+                self.update_status.emit(
+                    {
+                        "text": (
+                            f"Nenhum segmento de fala detectado em "
+                            f"{os.path.basename(filepath)} com pydub. "
+                            "Usando arquivo original."
+                        ),
+                        "last_time": 0,
+                        "total_time": 0,
+                    }
+                )
+                # Fallback: if no silence is detected, or the audio is too short,
+                # try to process the whole file or split it with ffmpeg if too long
+                if (
+                    len(audio) / 1000.0
+                    > self.smart_chunk_duration_seconds * 1.1
+                ):  # Add 10% margin
+                    return self._split_audio_with_ffmpeg(
+                        filepath, self.smart_chunk_duration_seconds
+                    )
+                return [filepath]
+
+
+            processed_chunk_idx = 0
+            for i, segment in enumerate(segments):
+                if len(segment) / 1000.0 > self.smart_chunk_duration_seconds:
+                    # If a speech segment is longer than smart_chunk_duration_seconds,
+                    # split it further into pieces of max smart_chunk_duration_seconds
+                    max_len_ms = self.smart_chunk_duration_seconds * 1000
+                    num_sub_chunks = int(len(segment) / max_len_ms) + 1
+                    for j in range(num_sub_chunks):
+                        start_ms = j * max_len_ms
+                        end_ms = (j + 1) * max_len_ms
+                        sub_segment = segment[start_ms:end_ms]
+                        if len(sub_segment) > 500:  # Avoid very small sub-chunks
+                            chunk_filepath = (
+                                f"{chunk_prefix}{processed_chunk_idx:03d}.wav"
+                            )
+                            sub_segment.export(
+                                chunk_filepath,
+                                format="wav",
+                                parameters=["-ar", "16000", "-ac", "1"],
+                            )
+                            chunk_files.append(chunk_filepath)
+                            processed_chunk_idx += 1
+                else:
+                    if len(segment) > 500:  # Avoid very small chunks
+                        chunk_filepath = (
+                            f"{chunk_prefix}{processed_chunk_idx:03d}.wav"
+                        )
+                        segment.export(
+                            chunk_filepath,
+                            format="wav",
+                            parameters=["-ar", "16000", "-ac", "1"],
+                        )
+                        chunk_files.append(chunk_filepath)
+                        processed_chunk_idx += 1
+
+            if not chunk_files:  # If all segments were too short
+                self.update_status.emit(
+                    {
+                        "text": (
+                            f"Segmentos de {os.path.basename(filepath)} muito curtos "
+                            "após divisão por silêncio. Usando arquivo original."
+                        ),
+                        "last_time": 0,
+                        "total_time": 0,
+                    }
+                )
+                if (
+                    len(audio) / 1000.0
+                    > self.smart_chunk_duration_seconds * 1.1
+                ):
+                    return self._split_audio_with_ffmpeg(
+                        filepath, self.smart_chunk_duration_seconds
+                    )
+                return [filepath]
+
+
+        except ImportError:
+            self.update_status.emit(
+                {
+                    "text": (
+                        "Erro: pydub não instalado. 'pip install pydub'. "
+                        "Usando divisão FFmpeg."
+                    ),
+                    "last_time": 0,
+                    "total_time": 0,
+                }
+            )
+            return self._split_audio_with_ffmpeg(
+                filepath, self.regular_chunk_duration_seconds
+            )
+        except Exception as e:
+            self.update_status.emit(
+                {
+                    "text": (
+                        f"Erro ao dividir {os.path.basename(filepath)} com pydub: {e}. "
+                        "Usando divisão FFmpeg."
+                    ),
+                    "last_time": 0,
+                    "total_time": 0,
+                }
+            )
+            # Fallback to ffmpeg splitting if pydub fails for any reason
+            return self._split_audio_with_ffmpeg(
+                filepath, self.regular_chunk_duration_seconds
+            )
+
+        if not chunk_files:  # Final check if pydub produced no usable chunks
+            self.update_status.emit(
+                {
+                    "text": (
+                        f"Pydub não produziu chunks para {os.path.basename(filepath)}. "
+                        "Tentando com FFmpeg."
+                    ),
+                    "last_time": 0,
+                    "total_time": 0,
+                }
+            )
+            return self._split_audio_with_ffmpeg(
+                filepath, self.regular_chunk_duration_seconds
+            )
+
+        return chunk_files
+
+    def _get_files_to_transcribe(self) -> list[str]:
+        all_files_to_process = []
+        # MP4 processing (extract audio, accelerate)
+        mp4_files = sorted(glob.glob(os.path.join(self.audio_folder, "*.mp4")))
+        acceleration_factor = self.whisper_settings.get(
+            "acceleration_factor", 1.25
+        )  # Get it here
+
+        for mp4_path in mp4_files:
+            base_name = os.path.splitext(os.path.basename(mp4_path))[0]
+            # Use a more descriptive name for accelerated audio
+            accelerated_wav_path = os.path.join(
+                self.audio_folder,
+                f"{base_name}_extracted_accelerated_{acceleration_factor}x.wav",
+            )
+
+            if not os.path.exists(accelerated_wav_path):
+                self.update_status.emit(
+                    {
+                        "text": (
+                            "Extraindo e acelerando áudio de "
+                            f"{os.path.basename(mp4_path)}..."
+                        ),
+                        "last_time": 0,
+                        "total_time": 0,
+                    }
+                )
+                try:
+                    command = [
+                        "ffmpeg",
+                        "-i",
+                        mp4_path,
+                        "-vn",
+                        "-acodec",
+                        "pcm_s16le",
+                        "-ar",
+                        "16000",
+                        "-ac",
+                        "1",
+                        "-filter:a",
+                        f"atempo={acceleration_factor}",
+                        accelerated_wav_path,
+                        "-y",
+                    ]
+                    subprocess.run(command, check=True, capture_output=True, text=True)
+                    all_files_to_process.append(accelerated_wav_path)
+                except subprocess.CalledProcessError as e:
+                    error_text = (
+                        f"Erro (ffmpeg) ao processar {os.path.basename(mp4_path)}: "
+                        f"{e.stderr}"
+                    )
+                    self.update_status.emit(
+                        {
+                            "text": error_text,
+                            "last_time": 0,
+                            "total_time": 0,
+                        }
+                    )
+                    continue
+                except FileNotFoundError:
+                    self.update_status.emit({
+                        "text": "Erro: FFmpeg não encontrado. Verifique a instalação.",
+                        "last_time": 0, "total_time": 0
+                    })
+                    return [] # Critical error, stop processing
+            else:
+                all_files_to_process.append(accelerated_wav_path)
+
+        # Add WAV files (processed and original, avoiding duplicates)
+        processed_wavs = sorted(
+            glob.glob(os.path.join(self.audio_folder, "*_processed.wav"))
+        )
+        original_wavs = sorted(glob.glob(os.path.join(self.audio_folder, "*.wav")))
+
+        all_files_to_process.extend(processed_wavs)
+
+        # Avoid adding original wavs if a processed version or an accelerated
+        # version exists. Also avoid adding chunk files from previous runs if any.
+        processed_or_accelerated_originals = set()
+        for f_path in processed_wavs:
+            processed_or_accelerated_originals.add(
+                f_path.replace("_processed.wav", ".wav")
+            )
+        for f_path in all_files_to_process:  # Check files from MP4 extraction too
+            if "_extracted_accelerated_" in f_path:
+                original_mp4_base = f_path.split("_extracted_accelerated_")[0]
+                processed_or_accelerated_originals.add(original_mp4_base + ".wav")
+
+        for wav_file in original_wavs:
+            is_chunk_file = "_chunk_" in wav_file  # Simple check for chunk files
+            is_accelerated_file = "_extracted_accelerated_" in wav_file
+            if (
+                wav_file not in processed_or_accelerated_originals
+                and not wav_file.endswith("_processed.wav")
+                and not is_chunk_file
+                and not is_accelerated_file
+            ):
+                all_files_to_process.append(wav_file)
+
+        # Remove duplicates and sort
+        all_files_to_process = sorted(list(set(all_files_to_process)))
+
+        # Now, apply chunking strategy
+        final_files_for_transcription = []
+        for filepath_to_chunk in all_files_to_process:
+            if self.enable_smart_chunking:
+                self.update_status.emit(
+                    {
+                        "text": (
+                            "Aplicando divisão inteligente em "
+                            f"{os.path.basename(filepath_to_chunk)}..."
+                        ),
+                        "last_time": 0,
+                        "total_time": 0,
+                    }
+                )
+                chunks = self._split_audio_with_pydub(filepath_to_chunk)
+                final_files_for_transcription.extend(chunks)
+            # Check if regular chunking should be applied (chunk_duration > 0)
+            elif self.regular_chunk_duration_seconds > 0:
+                self.update_status.emit(
+                    {
+                        "text": (
+                            f"Aplicando divisão FFmpeg "
+                            f"({self.regular_chunk_duration_seconds}s) em "
+                            f"{os.path.basename(filepath_to_chunk)}..."
+                        ),
+                        "last_time": 0,
+                        "total_time": 0,
+                    }
+                )
+                chunks = self._split_audio_with_ffmpeg(
+                    filepath_to_chunk, self.regular_chunk_duration_seconds
+                )
+                final_files_for_transcription.extend(chunks)
+            else:  # No chunking, transcribe whole file
+                final_files_for_transcription.append(filepath_to_chunk)
+
+        return sorted(list(set(final_files_for_transcription)))
+
+
     def run(self):
-        # ... (lógica da thread de transcrição permanece a mesma)
         model = None
         last_file_time = 0
         try:
+            # Critical settings for WhisperModel initialization
             model_size = self.whisper_settings.pop("model")
             device = self.whisper_settings.pop("device")
             compute_type = self.whisper_settings.pop("compute_type")
-            acceleration_factor = self.whisper_settings.pop("acceleration_factor", 1.25)
-            chunk_duration_seconds = self.whisper_settings.pop(
-                "chunk_duration_seconds", 60
-            )
-            print(f"[DEBUG] chunk_duration_seconds: {chunk_duration_seconds}")
+
+            # Other transcription parameters (already handled smart chunking params
+            # in __init__)
             transcribe_params = self.whisper_settings
+            # We removed smart chunking params from self.whisper_settings in __init__,
+            # and regular_chunk_duration_seconds is still in self.whisper_settings
+            # if needed by other parts, or can be accessed via
+            # self.regular_chunk_duration_seconds.
+            # For transcribe_params, we pass the remaining self.whisper_settings.
 
             self.update_status.emit(
                 {
@@ -278,113 +606,13 @@ class TranscriptionThread(QThread):
             model = WhisperModel(model_size, device=device, compute_type=compute_type)
             self.update_status.emit(
                 {
-                    "text": "Modelo carregado. Procurando arquivos...",
+                    "text": "Modelo carregado. Coletando e preparando arquivos...",
                     "last_time": 0,
                     "total_time": 0,
                 }
             )
 
-            all_files_to_process = []
-            mp4_files = sorted(glob.glob(os.path.join(self.audio_folder, "*.mp4")))
-            for mp4_path in mp4_files:
-                base_name = os.path.splitext(os.path.basename(mp4_path))[0]
-                accelerated_wav_path = os.path.join(
-                    self.audio_folder, f"{base_name}_{acceleration_factor}x.wav"
-                )
-
-                if not os.path.exists(accelerated_wav_path):
-                    self.update_status.emit(
-                        {
-                            "text": (
-                                f"Extraindo áudio de {os.path.basename(mp4_path)}..."
-                            ),
-                            "last_time": 0,
-                            "total_time": 0,
-                        }
-                    )
-                    try:
-                        command = [
-                            "ffmpeg",
-                            "-i",
-                            mp4_path,
-                            "-vn",
-                            "-acodec",
-                            "pcm_s16le",
-                            "-ar",
-                            "16000",
-                            "-ac",
-                            "1",
-                            "-filter:a",
-                            f"atempo={acceleration_factor}",
-                            accelerated_wav_path,
-                        ]
-                        subprocess.run(
-                            command, check=True, capture_output=True, text=True
-                        )
-                        self.update_status.emit(
-                            {
-                                "text": (
-                                    "Áudio extraído e salvo como "
-                                    f"{os.path.basename(accelerated_wav_path)}"
-                                ),
-                                "last_time": 0,
-                                "total_time": 0,
-                            }
-                        )
-                        all_files_to_process.append(accelerated_wav_path)
-                    except subprocess.CalledProcessError as e:
-                        error_msg = (
-                            "Erro ao processar "
-                            f"{os.path.basename(mp4_path)} com FFmpeg: {e.stderr}"
-                        )
-                        self.update_status.emit(
-                            {"text": error_msg, "last_time": 0, "total_time": 0}
-                        )
-                        continue
-                    except FileNotFoundError:
-                        self.update_status.emit(
-                            {
-                                "text": (
-                                    "Erro: FFmpeg não encontrado. Certifique-se "
-                                    "de que está instalado e no PATH do sistema."
-                                ),
-                                "last_time": 0,
-                                "total_time": 0,
-                            }
-                        )
-                        self.transcription_finished.emit("")
-                        return
-                else:
-                    all_files_to_process.append(accelerated_wav_path)
-
-            processed_wavs = sorted(
-                glob.glob(os.path.join(self.audio_folder, "*_processed.wav"))
-            )
-            original_wavs = sorted(glob.glob(os.path.join(self.audio_folder, "*.wav")))
-
-            all_files_to_process.extend(processed_wavs)
-
-            processed_originals = {
-                f.replace("_processed.wav", ".wav") for f in processed_wavs
-            }
-
-            for wav_file in original_wavs:
-                if wav_file not in processed_originals and not wav_file.endswith(
-                    ".wav"
-                ):
-                    all_files_to_process.append(wav_file)
-
-            files_to_transcribe = []
-            for filepath in all_files_to_process:
-                if chunk_duration_seconds > 0:
-                    chunks = self._split_audio_into_chunks(
-                        filepath, chunk_duration_seconds
-                    )
-                    files_to_transcribe.extend(chunks)
-                else:
-                    files_to_transcribe.append(filepath)
-
-            files_to_transcribe = sorted(list(set(files_to_transcribe)))
+            files_to_transcribe = self._get_files_to_transcribe()
 
             if not files_to_transcribe:
                 self.update_status.emit(
@@ -490,7 +718,12 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
             "condition_on_previous_text": True,
             "initial_prompt": "",
             "acceleration_factor": 1.25,
-            "chunk_duration_seconds": 60,
+            "chunk_duration_seconds": 60, # Original fixed chunk duration
+            # New smart chunking settings defaults
+            "enable_smart_chunking": False,
+            "smart_chunk_duration_seconds": 60,
+            "silence_threshold_dbfs": -40,
+            "min_silence_duration_ms": 500,
         }
 
         # Conecta os sinais dos widgets (da UI) aos slots (métodos de lógica)
@@ -925,9 +1158,83 @@ class FastWhisperSettingsDialog(QDialog):
         self.form_layout.addRow(
             "",
             create_wrapping_label(
-                "Tempo em segundos para quebrar arquivos de áudio/gravações."
+                "Tempo em segundos para quebrar arquivos de áudio/gravações "
+                "(divisão simples baseada em tempo)."
             ),
         )
+
+        # --- Configurações de Smart Chunking ---
+        self.form_layout.addRow(QLabel("--- Divisão Inteligente por Silêncio ---"))
+
+        self.enable_smart_chunking_checkbox = QCheckBox(
+            "Habilitar Divisão Inteligente por Silêncio"
+        )
+        self.enable_smart_chunking_checkbox.setChecked(
+            self.settings.get("enable_smart_chunking", False)
+        )
+        self.form_layout.addRow("", self.enable_smart_chunking_checkbox)
+        self.form_layout.addRow(
+            "",
+            create_wrapping_label(
+                "Quebra o áudio em momentos de silêncio, tentando preservar "
+                "palavras. Se habilitado, as configurações abaixo serão usadas. "
+                "Caso contrário, a 'Duração do Trecho (segundos)' acima será "
+                "usada para uma divisão simples."
+            ),
+        )
+
+        self.smart_chunk_duration_spinbox = QSpinBox()
+        self.smart_chunk_duration_spinbox.setRange(10, 600)  # Max 10 minutos
+        self.smart_chunk_duration_spinbox.setSingleStep(10)
+        self.smart_chunk_duration_spinbox.setValue(
+            self.settings.get("smart_chunk_duration_seconds", 60)
+        )
+        self.form_layout.addRow(
+            "Duração Máx. do Trecho Inteligente (s):",
+            self.smart_chunk_duration_spinbox,
+        )
+        self.form_layout.addRow(
+            "",
+            create_wrapping_label(
+                "Duração máxima de um trecho ao usar a divisão inteligente. "
+                "Segmentos de fala mais longos que isso serão divididos."
+            ),
+        )
+
+        self.silence_threshold_spinbox = QSpinBox()
+        self.silence_threshold_spinbox.setRange(-70, -20)  # dBFS
+        self.silence_threshold_spinbox.setSingleStep(1)
+        self.silence_threshold_spinbox.setValue(
+            self.settings.get("silence_threshold_dbfs", -40)
+        )
+        self.form_layout.addRow(
+            "Limiar de Silêncio (dBFS):", self.silence_threshold_spinbox
+        )
+        self.form_layout.addRow(
+            "",
+            create_wrapping_label(
+                "Nível de áudio abaixo do qual é considerado silêncio. "
+                "Valores mais baixos (e.g. -50) detectam silêncios mais sutis."
+            ),
+        )
+
+        self.min_silence_len_spinbox = QSpinBox()
+        self.min_silence_len_spinbox.setRange(100, 5000)  # ms
+        self.min_silence_len_spinbox.setSingleStep(50)
+        self.min_silence_len_spinbox.setValue(
+            self.settings.get("min_silence_duration_ms", 500)
+        )
+        self.form_layout.addRow(
+            "Duração Mínima do Silêncio (ms):", self.min_silence_len_spinbox
+        )
+        self.form_layout.addRow(
+            "",
+            create_wrapping_label(
+                "Duração mínima de um período de silêncio para que o áudio "
+                "seja dividido nesse ponto."
+            ),
+        )
+
 
         # --- Botões ---
         self.button_box = QDialogButtonBox(
@@ -1043,7 +1350,24 @@ class FastWhisperSettingsDialog(QDialog):
         )
         self.settings["initial_prompt"] = self.initial_prompt_edit.text()
         self.settings["acceleration_factor"] = self.acceleration_spinbox.value()
-        self.settings["chunk_duration_seconds"] = self.chunk_duration_spinbox.value()
+        # Original chunk duration
+        self.settings["chunk_duration_seconds"] = (
+            self.chunk_duration_spinbox.value()
+        )
+
+        # Get new smart chunking settings
+        self.settings["enable_smart_chunking"] = (
+            self.enable_smart_chunking_checkbox.isChecked()
+        )
+        self.settings["smart_chunk_duration_seconds"] = (
+            self.smart_chunk_duration_spinbox.value()
+        )
+        self.settings["silence_threshold_dbfs"] = (
+            self.silence_threshold_spinbox.value()
+        )
+        self.settings["min_silence_duration_ms"] = (
+            self.min_silence_len_spinbox.value()
+        )
         return self.settings
 
 
