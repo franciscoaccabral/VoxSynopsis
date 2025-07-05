@@ -15,7 +15,7 @@ Esta documentação é organizada com base nos arquivos fonte do projeto. Cada a
 ### Arquivos Fonte Principais e Sua Documentação
 
 - **[`vox_synopsis_fast_whisper.py`](./vox_synopsis_fast_whisper.md)**: O coração da aplicação. Contém a lógica da interface gráfica (GUI), coordena a gravação de áudio, gerencia as threads de transcrição com Fast Whisper e lida com as interações do usuário.
-- **[`ui_vox_synopsis.py`](./ui_vox_synopsis.md)**: Define a estrutura da interface gráfica (esqueleto da UI) gerada a partir do Qt Designer. Não deve ser editado manualmente.
+<!-- - **[`ui_vox_synopsis.py`](./ui_vox_synopsis.md)**: Define a estrutura da interface gráfica (esqueleto da UI) gerada a partir do Qt Designer. Não deve ser editado manualmente. -->
 - **[`style.qss`](./style.qss.md)**: Arquivo de folha de estilos Qt (QSS) responsável pela personalização visual e tema da aplicação.
 
 ### Documentação dos Testes Unitários
