@@ -8,6 +8,25 @@ O VoxSynopsis é uma aplicação desktop projetada para facilitar a **gravação
 
 **Para informações sobre como usar a aplicação, instalar, contribuir ou sobre a licença, por favor, consulte o [`README.md`](../README.md) principal do projeto.**
 
+## Resumo de Arquitetura
+
+O fluxo central do VoxSynopsis envolve três componentes principais trabalhando juntos:
+
+1. **`AudioRecorderApp`** – Janela principal que recebe as ações do usuário. É responsável por iniciar/parar a gravação e acionar a transcrição.
+2. **`RecordingThread`** – Thread dedicada à captura do áudio em blocos. Ela salva os arquivos WAV na pasta de saída e envia atualizações de tempo e volume para a aplicação.
+3. **`TranscriptionThread`** – Thread que lê os arquivos gravados, processa cada um com o modelo Fast Whisper e devolve o texto transcrito para a `AudioRecorderApp`.
+
+Uma visão simplificada do fluxo é:
+
+```
+AudioRecorderApp
+    ├── inicia RecordingThread ──► arquivos WAV
+    └── inicia TranscriptionThread ◄── lê arquivos
+            │
+            └── envia texto e status para a aplicação
+```
+
+
 ## Estrutura da Documentação Técnica
 
 Esta documentação é organizada com base nos arquivos fonte do projeto. Cada arquivo de código principal possui um documento Markdown correspondente que detalha suas classes, funções, parâmetros e responsabilidades.
