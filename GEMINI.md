@@ -50,3 +50,22 @@ Este projeto utiliza uma estrutura de documentação localizada na pasta `docs/`
 3.  **Consistência:** Mantenha o estilo e o nível de detalhe da documentação existente.
 
 Manter a documentação sincronizada com o código é crucial para a manutenibilidade do projeto e para a eficiência de futuros desenvolvimentos, especialmente ao colaborar com outros desenvolvedores ou agentes de IA.
+## Princípios de Design e Depuração
+
+As seguintes lições foram aprendidas durante o desenvolvimento e devem ser aplicadas a projetos futuros para garantir a robustez e a manutenibilidade do código.
+
+*   **Evite Limiares Estáticos; Use Adaptação Dinâmica:**
+    *   **Problema:** Usar valores fixos e "mágicos" (ex: um limiar de silêncio de -40 dBFS) torna o sistema frágil, pois ele falha quando os dados do mundo real não correspondem ao cenário ideal.
+    *   **Solução:** Projete sistemas que se adaptam aos dados. Em vez de um limiar estático, calcule um limiar dinâmico com base nas características do próprio dado (ex: `limiar_de_silencio = volume_medio_do_arquivo + margem`). Isso torna o algoritmo resiliente a diferentes condições de entrada (ex: áudio limpo vs. ruidoso).
+
+*   **Tornar o Invisível, Visível (Telemetria é Essencial):**
+    *   **Problema:** É impossível depurar um sistema "caixa-preta" cujo estado interno é desconhecido.
+    *   **Solução:** Adicione logs e mensagens de status que exponham os valores internos críticos que influenciam o comportamento do algoritmo (ex: "Usando limiar dinâmico de -35.4dBFS baseado em piso de ruído de -39.4dBFS"). Sem telemetria, a depuração é um jogo de adivinhação.
+
+*   **Considere os Efeitos em Cascata das Transformações:**
+    *   **Problema:** Uma transformação nos dados (ex: acelerar um áudio) pode ter efeitos secundários inesperados em parâmetros que parecem não relacionados (ex: a duração das pausas de silêncio).
+    *   **Solução:** Ao aplicar uma transformação, revise todos os parâmetros e lógicas que consomem esses dados e ajuste-os conforme necessário. A lógica deve ser ciente das transformações aplicadas (ex: `duracao_minima_silencio_ajustada = duracao_original / fator_de_aceleracao`).
+
+*   **Prefira Agregar a Descartar:**
+    *   **Problema:** Descartar dados que não atendem a um critério rígido (ex: segmentos de áudio com menos de 500ms) pode levar a falhas em cascata, onde nenhum dado é processado.
+    *   **Solução:** Em vez de descartar, implemente uma lógica de agregação. Combine pequenos pedaços de dados válidos até que eles formem uma unidade de trabalho maior e ideal. Isso preserva a informação e torna o sistema mais eficiente.

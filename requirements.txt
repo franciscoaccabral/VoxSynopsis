@@ -8,3 +8,4 @@ faster-whisper
 psutil
 torch
 pyright
+pydub
