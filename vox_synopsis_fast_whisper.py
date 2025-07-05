@@ -414,16 +414,24 @@ class TranscriptionThread(QThread):
             )
             chunks_to_accelerate.extend(chunks)
 
-        # 4. Acelerar cada chunk individualmente
+            # Se o arquivo de áudio foi um WAV extraído de um MP4, exclui-o agora
+            if "_extracted.wav" in os.path.basename(audio_file):
+                try:
+                    os.remove(audio_file)
+                    self.update_status.emit({"text": f"Limpando arquivo intermediário {os.path.basename(audio_file)}..."})
+                except OSError as e:
+                    self.update_status.emit({"text": f"Erro ao excluir arquivo intermediário: {e}"})
+
+        # 4. Acelerar cada chunk individualmente e limpar os originais
         acceleration_factor = self.whisper_settings.get("acceleration_factor", 1.0)
         if acceleration_factor > 1.0:
+            self.update_status.emit({"text": f"Acelerando {len(chunks_to_accelerate)} chunks..."})
             for chunk_path in chunks_to_accelerate:
                 base_name = os.path.splitext(os.path.basename(chunk_path))[0]
                 accelerated_chunk_path = os.path.join(
                     self.audio_folder, f"{base_name}_accelerated_{acceleration_factor}x.wav"
                 )
                 if not os.path.exists(accelerated_chunk_path):
-                    self.update_status.emit({"text": f"Acelerando chunk {os.path.basename(chunk_path)}..."})
                     try:
                         accel_cmd = [
                             "ffmpeg", "-i", chunk_path, "-filter:a",
@@ -431,12 +439,18 @@ class TranscriptionThread(QThread):
                         ]
                         subprocess.run(accel_cmd, check=True, capture_output=True, text=True)
                         final_files_for_transcription.append(accelerated_chunk_path)
+                        # Exclui o chunk original após o sucesso
+                        os.remove(chunk_path)
                     except Exception as e:
                         self.update_status.emit({"text": f"Erro ao acelerar chunk: {e}"})
-                        # Se a aceleração falhar, usa o chunk original
                         final_files_for_transcription.append(chunk_path)
                 else:
                     final_files_for_transcription.append(accelerated_chunk_path)
+                    # Exclui o chunk original se o acelerado já existe
+                    try:
+                        os.remove(chunk_path)
+                    except OSError as e:
+                        self.update_status.emit({"text": f"Erro ao excluir chunk {os.path.basename(chunk_path)}: {e}"})
         else:
             # Se não houver aceleração, usa os chunks originais
             final_files_for_transcription.extend(chunks_to_accelerate)
@@ -453,14 +467,23 @@ class TranscriptionThread(QThread):
             device = self.whisper_settings.pop("device")
             compute_type = self.whisper_settings.pop("compute_type")
 
-            # Other transcription parameters (already handled smart chunking params
-            # in __init__)
-            transcribe_params = self.whisper_settings
-            # We removed smart chunking params from self.whisper_settings in __init__,
-            # and regular_chunk_duration_seconds is still in self.whisper_settings
-            # if needed by other parts, or can be accessed via
-            # self.regular_chunk_duration_seconds.
-            # For transcribe_params, we pass the remaining self.whisper_settings.
+            # Whitelist de argumentos válidos para o método model.transcribe().
+            # Isso evita passar argumentos de palavra-chave inesperados.
+            valid_transcribe_args = [
+                "language",
+                "vad_filter",
+                "temperature",
+                "best_of",
+                "beam_size",
+                "condition_on_previous_text",
+                "initial_prompt",
+            ]
+            # Cria um dicionário limpo apenas com os argumentos válidos.
+            transcribe_params = {
+                key: self.whisper_settings[key]
+                for key in valid_transcribe_args
+                if key in self.whisper_settings
+            }
 
             self.update_status.emit(
                 {
