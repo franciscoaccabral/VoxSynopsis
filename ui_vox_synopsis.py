@@ -92,6 +92,8 @@ class Ui_MainWindow(object):
         resource_layout.addWidget(self.cpu_bar)
         resource_layout.addWidget(QLabel("Memória:"))
         resource_layout.addWidget(self.mem_bar)
+        self.threads_label = QLabel("Threads: N/A")
+        resource_layout.addWidget(self.threads_label)
         resource_group.setLayout(resource_layout)
         self.main_layout.addWidget(resource_group)
 

@@ -78,6 +78,20 @@ Este é o script principal da aplicação VoxSynopsis. Ele gerencia a interface 
         *   `get_settings(self) -> dict[str, Any]`:
             *   **Retorno**: Um dicionário contendo as configurações selecionadas pelo usuário no diálogo.
 
+**Parâmetros de Configuração no `FastWhisperSettingsDialog`:**
+
+*   **Modelo**: Seleciona o tamanho do modelo Whisper (de `tiny` a `large-v3`). Modelos maiores são mais precisos, mas exigem mais recursos.
+*   **Dispositivo**: Escolhe entre `cpu` e `cuda` (GPU). `cuda` é significativamente mais rápido se uma GPU NVIDIA compatível estiver disponível.
+*   **Tipo de Computação**: Define a precisão dos cálculos. `int8` é o mais rápido para CPU, enquanto `int8_float16` ou `float16` são ideais para GPU.
+*   **Threads (CPU)**: Define o número de threads que o processador pode usar para a transcrição. O valor é limitado ao número de núcleos da CPU para evitar sobrecarga. Recomenda-se usar o máximo para melhor desempenho em tarefas de CPU.
+*   **Filtro VAD**: Ativa ou desativa a Detecção de Atividade de Voz (VAD), que pula trechos de silêncio no áudio, acelerando a transcrição.
+*   **Idioma**: Define o idioma do áudio. `auto` tenta detectar automaticamente.
+*   **Temperatura**: Controla a aleatoriedade da saída. Valores mais altos (ex: 0.8) tornam a saída mais criativa, mas potencialmente menos precisa. 0.0 é determinístico.
+*   **Best Of / Beam Size**: Parâmetros avançados que controlam o processo de decodificação. Valores maiores podem aumentar a precisão em detrimento da velocidade.
+*   **Fator de Aceleração (Vídeo)**: Acelera o áudio extraído de arquivos de vídeo antes da transcrição. Útil para vídeos longos com falas lentas.
+*   **Duração do Trecho**: Define a duração em segundos para dividir os arquivos de áudio em pedaços menores. Essencial para gerenciar o uso de memória com arquivos grandes.
+*   **Divisão Inteligente por Silêncio**: Um conjunto de configurações que permite dividir o áudio com base na detecção de silêncio, em vez de um intervalo de tempo fixo, o que pode produzir transcrições mais coesas.
+
 **Funções Globais:**
 
 1.  **`load_stylesheet(app: Any) -> None`**:
