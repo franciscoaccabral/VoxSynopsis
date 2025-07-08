@@ -1,4 +1,18 @@
 {
-  "typeCheckingMode": "standard",
-  "exclude": ["**/venv/**", "**/__pycache__/**"]
+  "typeCheckingMode": "basic",
+  "exclude": ["**/venv/**", "**/__pycache__/**"],
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownLambdaType": false,
+  "reportUnknownParameterType": false,
+  "pythonVersion": "3.12",
+  "reportUnusedImport": true,
+  "reportUnusedVariable": true,
+  "reportUnusedFunction": true,
+  "reportUnnecessaryTypeIgnoreComment": true,
+  "reportUnnecessaryIsInstance": true,
+  "reportUnnecessaryComparison": true
 }

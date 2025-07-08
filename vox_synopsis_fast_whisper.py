@@ -1,3 +1,4 @@
+import concurrent.futures
 import datetime
 import glob
 import json
@@ -6,6 +7,8 @@ import re
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from typing import Any, TypedDict, cast
 
 import noisereduce as nr
@@ -49,6 +52,7 @@ except ImportError:
 # --- Configurações Globais ---
 SAMPLE_RATE = 48000
 OUTPUT_DIR = "gravacoes"
+MAX_WORKERS = min(4, (os.cpu_count() or 1) + 1)  # Limite de workers para threads
 
 
 # --- Função para carregar o stylesheet ---
@@ -62,7 +66,68 @@ def load_stylesheet(app: Any) -> None:
         print("Arquivo style.qss não encontrado. Usando estilo padrão.")
 
 
-# --- Threads de Trabalho (sem alteração) ---
+# --- Classes de Dados ---
+
+@dataclass
+class AudioFileInfo:
+    """Informações sobre arquivos de áudio para cache"""
+    filepath: str
+    duration: float
+    size: int
+    modified_time: float
+
+    @classmethod
+    def from_file(cls, filepath: str) -> "AudioFileInfo":
+        """Cria AudioFileInfo a partir de um arquivo"""
+        stat = os.stat(filepath)
+        return cls(
+            filepath=filepath,
+            duration=0.0,  # Será preenchido posteriormente
+            size=stat.st_size,
+            modified_time=stat.st_mtime
+        )
+
+class FileCache:
+    """Sistema de cache para operações FFmpeg"""
+
+    def __init__(self):
+        self._duration_cache: dict[str, float] = {}
+        self._file_info_cache: dict[str, AudioFileInfo] = {}
+
+    def get_duration(self, filepath: str) -> float | None:
+        """Obtém duração do cache se arquivo não foi modificado"""
+        if not os.path.exists(filepath):
+            return None
+
+        current_mtime = os.path.getmtime(filepath)
+        cached_info = self._file_info_cache.get(filepath)
+
+        if cached_info and cached_info.modified_time == current_mtime:
+            return cached_info.duration
+
+        return None
+
+    def set_duration(self, filepath: str, duration: float) -> None:
+        """Armazena duração no cache"""
+        if os.path.exists(filepath):
+            info = AudioFileInfo.from_file(filepath)
+            info.duration = duration
+            self._file_info_cache[filepath] = info
+            self._duration_cache[filepath] = duration
+
+    def clear_stale_entries(self) -> None:
+        """Remove entradas antigas do cache"""
+        stale_keys = []
+        for filepath, info in self._file_info_cache.items():
+            if (not os.path.exists(filepath) or
+                os.path.getmtime(filepath) != info.modified_time):
+                stale_keys.append(filepath)
+
+        for key in stale_keys:
+            self._file_info_cache.pop(key, None)
+            self._duration_cache.pop(key, None)
+
+# --- Threads de Trabalho ---
 
 class DeviceInfo(TypedDict):
     name: str
@@ -106,7 +171,7 @@ class RecordingThread(QThread):
                     dtype="float32",
                 ) as stream:
                     print(f"Iniciando novo trecho. Salvando em: {filename}")
-                    for i in range(
+                    for _ in range(
                         int(SAMPLE_RATE * self.chunk_duration_seconds / 1024)
                     ):
                         if not self._is_running:
@@ -189,11 +254,18 @@ class TranscriptionThread(QThread):
         self.audio_folder = audio_folder
         self.whisper_settings = whisper_settings.copy()
         self._is_running = True
+        self.file_cache = FileCache()
 
         # Extrai cpu_threads e remove do dicionário principal para evitar erros
         self.cpu_threads = self.whisper_settings.pop(
             "cpu_threads", psutil.cpu_count(logical=False) or 4
         )
+
+        # Configurações de paralelização
+        self.parallel_processes = self.whisper_settings.pop(
+            "parallel_processes", min(2, max(1, (os.cpu_count() or 1) // 2))
+        )
+        self.max_workers = min(MAX_WORKERS, self.parallel_processes)
 
         # Smart chunking settings
         self.enable_smart_chunking = self.whisper_settings.pop(
@@ -462,10 +534,164 @@ class TranscriptionThread(QThread):
 
         return chunk_files
 
-    def _get_files_to_transcribe(self) -> list[str]:
-        # --- Novo Fluxo de Trabalho Refatorado ---
+    def _get_audio_duration_ffmpeg(self, filepath: str) -> float:
+        """Usa ffprobe para obter a duração de um arquivo de áudio com cache."""
+        if not os.path.exists(filepath):
+            return 0.0
+
+        # Verifica o cache primeiro
+        cached_duration = self.file_cache.get_duration(filepath)
+        if cached_duration is not None:
+            return cached_duration
+
+        try:
+            probe_command = [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                filepath,
+            ]
+            duration_str = subprocess.check_output(
+                probe_command, text=True, stderr=subprocess.PIPE
+            ).strip()
+            duration = float(duration_str)
+
+            # Armazena no cache
+            self.file_cache.set_duration(filepath, duration)
+            return duration
+
+        except (subprocess.CalledProcessError, FileNotFoundError, ValueError) as e:
+            print(f"Erro ao obter duração de {os.path.basename(filepath)}: {e}")
+            return 0.0
+
+    def _process_media_files_parallel(self, media_files: list[str]) -> list[str]:
+        """Processa arquivos de mídia em paralelo"""
         files_to_process = []
-        final_files_for_transcription = []
+
+        def extract_audio(media_path: str) -> str | None:
+            """Extrai áudio de um arquivo MP4"""
+            if not self._is_running:
+                return None
+
+            if media_path.lower().endswith(".mp4"):
+                base_name = os.path.splitext(os.path.basename(media_path))[0]
+                extracted_wav_path = os.path.join(
+                    self.audio_folder, f"{base_name}_extracted.wav"
+                )
+                if not os.path.exists(extracted_wav_path):
+                    try:
+                        extract_cmd = [
+                            "ffmpeg",
+                            "-hwaccel", "auto",
+                            "-threads", "0",
+                            "-i", media_path,
+                            "-vn", "-acodec", "pcm_s16le",
+                            "-ar", "16000", "-ac", "1",
+                            extracted_wav_path, "-y",
+                        ]
+                        subprocess.run(
+                            extract_cmd, check=True, capture_output=True, text=True
+                        )
+                        return extracted_wav_path
+                    except Exception as e:
+                        self.update_status.emit({"text": f"Erro ao extrair áudio: {e}"})
+                        return None
+                else:
+                    return extracted_wav_path
+            elif media_path.lower().endswith(".wav"):
+                return media_path
+            return None
+
+        # Processa em paralelo
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            self.update_status.emit({"text": "Extraindo áudio dos arquivos..."})
+            future_to_file = {
+                executor.submit(extract_audio, media): media
+                for media in media_files
+            }
+
+            for future in concurrent.futures.as_completed(future_to_file):
+                if not self._is_running:
+                    break
+
+                result = future.result()
+                if result:
+                    files_to_process.append(result)
+
+        return files_to_process
+
+    def _accelerate_chunks_parallel(self, chunks: list[str]) -> list[str]:
+        """Acelera chunks em paralelo"""
+        acceleration_factor = self.whisper_settings.get("acceleration_factor", 1.0)
+
+        if acceleration_factor <= 1.0:
+            return chunks
+
+        final_files = []
+
+        def accelerate_chunk(chunk_path: str) -> str:
+            """Acelera um chunk individual"""
+            if not self._is_running:
+                return chunk_path
+
+            base_name = os.path.splitext(os.path.basename(chunk_path))[0]
+            accelerated_chunk_path = os.path.join(
+                self.audio_folder,
+                f"{base_name}_accelerated_{acceleration_factor}x.wav",
+            )
+
+            if not os.path.exists(accelerated_chunk_path):
+                try:
+                    accel_cmd = [
+                        "ffmpeg", "-threads", "0", "-i", chunk_path,
+                        "-filter:a", f"atempo={acceleration_factor}",
+                        accelerated_chunk_path, "-y"
+                    ]
+                    subprocess.run(
+                        accel_cmd, check=True, capture_output=True, text=True
+                    )
+                    # Exclui o chunk original após o sucesso
+                    os.remove(chunk_path)
+                    return accelerated_chunk_path
+                except Exception as e:
+                    self.update_status.emit(
+                        {"text": f"Erro ao acelerar chunk: {e}"}
+                    )
+                    return chunk_path
+            else:
+                # Exclui o chunk original se o acelerado já existe
+                try:
+                    os.remove(chunk_path)
+                except OSError:
+                    pass
+                return accelerated_chunk_path
+
+        # Processa chunks em paralelo
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            self.update_status.emit({"text": f"Acelerando {len(chunks)} chunks..."})
+            future_to_chunk = {
+                executor.submit(accelerate_chunk, chunk): chunk
+                for chunk in chunks
+            }
+
+            for future in concurrent.futures.as_completed(future_to_chunk):
+                if not self._is_running:
+                    break
+
+                result = future.result()
+                if result:
+                    final_files.append(result)
+
+        return final_files
+
+    def _get_files_to_transcribe(self) -> list[str]:
+        """Otimizado com processamento paralelo"""
+        # Limpa cache antigo
+        self.file_cache.clear_stale_entries()
 
         # 1. Coletar todos os arquivos de mídia (MP4 e WAV)
         all_media_files = sorted(
@@ -474,64 +700,23 @@ class TranscriptionThread(QThread):
 
         # Filtra arquivos que já são chunks ou processados para evitar reprocessamento
         all_media_files = [
-            f for f in all_media_files if "_chunk_" not in os.path.basename(f)
-        ]
-        all_media_files = [
-            f for f in all_media_files if "_processed" not in os.path.basename(f)
-        ]
-        all_media_files = [
-            f for f in all_media_files if "_accelerated" not in os.path.basename(f)
+            f for f in all_media_files
+            if not any(pattern in os.path.basename(f) for pattern in
+                      ["_chunk_", "_processed", "_accelerated", "_extracted"])
         ]
 
-        for media_path in all_media_files:
-            # 2. Extrair áudio de MP4 para um WAV temporário (sem acelerar)
-            if media_path.lower().endswith(".mp4"):
-                base_name = os.path.splitext(os.path.basename(media_path))[0]
-                extracted_wav_path = os.path.join(
-                    self.audio_folder, f"{base_name}_extracted.wav"
-                )
-                if not os.path.exists(extracted_wav_path):
-                    self.update_status.emit(
-                        {
-                            "text": (
-                                f"Extraindo áudio de {os.path.basename(media_path)}..."
-                            )
-                        }
-                    )
-                    try:
-                        extract_cmd = [
-                            "ffmpeg",
-                            "-hwaccel",
-                            "auto",
-                            "-threads",
-                            "0",
-                            "-i",
-                            media_path,
-                            "-vn",
-                            "-acodec",
-                            "pcm_s16le",
-                            "-ar",
-                            "16000",
-                            "-ac",
-                            "1",
-                            extracted_wav_path,
-                            "-y",
-                        ]
-                        subprocess.run(
-                            extract_cmd, check=True, capture_output=True, text=True
-                        )
-                        files_to_process.append(extracted_wav_path)
-                    except Exception as e:
-                        self.update_status.emit({"text": f"Erro ao extrair áudio: {e}"})
-                        continue
-                else:
-                    files_to_process.append(extracted_wav_path)
-            elif media_path.lower().endswith(".wav"):
-                files_to_process.append(media_path)
+        # 2. Processa arquivos em paralelo
+        files_to_process = self._process_media_files_parallel(all_media_files)
+
+        if not files_to_process:
+            return []
 
         # 3. Dividir os arquivos de áudio usando a detecção de silêncio do FFmpeg
         chunks_to_accelerate = []
         for audio_file in files_to_process:
+            if not self._is_running:
+                break
+
             self.update_status.emit(
                 {"text": f"Dividindo {os.path.basename(audio_file)} por silêncio..."}
             )
@@ -544,72 +729,15 @@ class TranscriptionThread(QThread):
             if "_extracted.wav" in os.path.basename(audio_file):
                 try:
                     os.remove(audio_file)
-                    self.update_status.emit(
-                        {
-                            "text": (
-                                f"Limpando arquivo intermediário "
-                                f"{os.path.basename(audio_file)}..."
-                            )
-                        }
-                    )
                 except OSError as e:
                     self.update_status.emit(
                         {"text": f"Erro ao excluir arquivo intermediário: {e}"}
                     )
 
-        # 4. Acelerar cada chunk individualmente e limpar os originais
-        acceleration_factor = self.whisper_settings.get("acceleration_factor", 1.0)
-        if acceleration_factor > 1.0:
-            self.update_status.emit(
-                {"text": f"Acelerando {len(chunks_to_accelerate)} chunks..."}
-            )
-            for chunk_path in chunks_to_accelerate:
-                base_name = os.path.splitext(os.path.basename(chunk_path))[0]
-                accelerated_chunk_path = os.path.join(
-                    self.audio_folder,
-                    f"{base_name}_accelerated_{acceleration_factor}x.wav",
-                )
-                if not os.path.exists(accelerated_chunk_path):
-                    try:
-                        accel_cmd = [
-                            "ffmpeg",
-                            "-threads",
-                            "0",
-                            "-i",
-                            chunk_path,
-                            "-filter:a",
-                            f"atempo={acceleration_factor}",
-                            accelerated_chunk_path,
-                            "-y",
-                        ]
-                        subprocess.run(
-                            accel_cmd, check=True, capture_output=True, text=True
-                        )
-                        final_files_for_transcription.append(accelerated_chunk_path)
-                        # Exclui o chunk original após o sucesso
-                        os.remove(chunk_path)
-                    except Exception as e:
-                        self.update_status.emit(
-                            {"text": f"Erro ao acelerar chunk: {e}"}
-                        )
-                        final_files_for_transcription.append(chunk_path)
-                else:
-                    final_files_for_transcription.append(accelerated_chunk_path)
-                    # Exclui o chunk original se o acelerado já existe
-                    try:
-                        os.remove(chunk_path)
-                    except OSError as e:
-                        self.update_status.emit(
-                            {
-                                "text": (
-                                    f"Erro ao excluir chunk "
-                                    f"{os.path.basename(chunk_path)}: {e}"
-                                )
-                            }
-                        )
-        else:
-            # Se não houver aceleração, usa os chunks originais
-            final_files_for_transcription.extend(chunks_to_accelerate)
+        # 4. Acelerar chunks em paralelo
+        final_files_for_transcription = self._accelerate_chunks_parallel(
+            chunks_to_accelerate
+        )
 
         return sorted(list(set(final_files_for_transcription)))
 
@@ -704,7 +832,7 @@ class TranscriptionThread(QThread):
                 )
 
                 start_time = time.time()
-                segments, info = model.transcribe(filepath, **transcribe_params)
+                segments, _ = model.transcribe(filepath, **transcribe_params)
                 transcription_text = "".join(segment.text for segment in segments)
                 end_time = time.time()
 
@@ -741,6 +869,8 @@ class TranscriptionThread(QThread):
 
     def stop(self):
         self._is_running = False
+        # Limpa o cache ao parar
+        self.file_cache.clear_stale_entries()
 
 
 # --- Janela Principal da Aplicação ---
@@ -841,7 +971,7 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
         # Move o canto superior esquerdo da janela para a nova posição
         self.move(window_geometry.topLeft())
 
-    def showEvent(self, event):  # type: ignore[override]
+    def showEvent(self, event):
         # Chama o método original para garantir o comportamento padrão
         super().showEvent(event)
         # Centraliza a janela apenas na primeira vez que ela é exibida
@@ -986,7 +1116,7 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
         if not found_loopback:
             self.device_combo.addItem("Áudio do Sistema (Não disponível)")
             last_item_index = self.device_combo.count() - 1
-            self.device_combo.model().item(last_item_index).setEnabled(False)  # type: ignore[attr-defined]
+            self.device_combo.model().item(last_item_index).setEnabled(False)
 
     def start_recording(self):
         device_index = self.device_combo.currentData()
@@ -1078,7 +1208,7 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
                 "As configurações do FastWhisper foram salvas com sucesso!",
             )
 
-    def closeEvent(self, a0: QCloseEvent) -> None:  # type: ignore[override]
+    def closeEvent(self, a0: QCloseEvent) -> None:
         if self.recording_thread and self.recording_thread.isRunning():
             self.stop_recording()
             self.recording_thread.wait()
@@ -1135,7 +1265,7 @@ class FastWhisperSettingsDialog(QDialog):
         self.device_combo.addItems(["cpu", "cuda"])
         gpu_available = torch is not None and torch.cuda.is_available()
         if not gpu_available:
-            self.device_combo.model().item(1).setEnabled(False)  # type: ignore[attr-defined]
+            self.device_combo.model().item(1).setEnabled(False)
         self.device_combo.setCurrentText(self.settings.get("device", "cpu"))
         self.form_layout.addRow("Dispositivo:", self.device_combo)
         self.form_layout.addRow(
@@ -1198,7 +1328,7 @@ class FastWhisperSettingsDialog(QDialog):
             create_wrapping_label("Idioma do áudio. 'auto' para detecção automática."),
         )
 
-        self.temperature_slider = QSlider(Qt.Horizontal)  # type: ignore[attr-defined]
+        self.temperature_slider = QSlider(Qt.Horizontal)
         self.temperature_slider.setRange(0, 10)
         self.temperature_slider.setValue(
             int(self.settings.get("temperature", 0.0) * 10)
@@ -1210,7 +1340,7 @@ class FastWhisperSettingsDialog(QDialog):
             lambda v: self.temperature_label.setText(f"Temperatura: {v / 10.0}")
         )
         self.form_layout.addRow(self.temperature_label, self.temperature_slider)
-        self.best_of_slider = QSlider(Qt.Horizontal)  # type: ignore[attr-defined]
+        self.best_of_slider = QSlider(Qt.Horizontal)
         self.best_of_slider.setRange(1, 10)
         self.best_of_slider.setValue(self.settings.get("best_of", 5))
         self.best_of_label = QLabel(f"Best Of: {self.best_of_slider.value()}")
@@ -1218,7 +1348,7 @@ class FastWhisperSettingsDialog(QDialog):
             lambda v: self.best_of_label.setText(f"Best Of: {v}")
         )
         self.form_layout.addRow(self.best_of_label, self.best_of_slider)
-        self.beam_size_slider = QSlider(Qt.Horizontal)  # type: ignore[attr-defined]
+        self.beam_size_slider = QSlider(Qt.Horizontal)
         self.beam_size_slider.setRange(1, 10)
         self.beam_size_slider.setValue(self.settings.get("beam_size", 5))
         self.beam_size_label = QLabel(f"Beam Size: {self.beam_size_slider.value()}")
@@ -1374,7 +1504,7 @@ class FastWhisperSettingsDialog(QDialog):
 
         if gpu_available:
             assert torch is not None
-            vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)  # type: ignore[call-arg]
+            vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
             self.device_combo.setCurrentText("cuda")
             self.compute_type_combo.setCurrentText("int8_float16")
 
