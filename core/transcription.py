@@ -551,12 +551,46 @@ class TranscriptionThread(QThread):
                     "total_time": 0,
                 }
             )
-            model = WhisperModel(
-                model_size,
-                device=device,
-                compute_type=compute_type,
-                cpu_threads=self.cpu_threads,
-            )
+            # Try optimized configuration first, fallback to safe config if needed
+            try:
+                model = WhisperModel(
+                    model_size,
+                    device=device,
+                    compute_type=compute_type,
+                    cpu_threads=self.cpu_threads,
+                    num_workers=1,  # Otimizado: single worker para estabilidade CPU
+                )
+            except Exception as e:
+                # Clear potentially problematic environment variables
+                from .performance import clear_problematic_environment_vars
+                clear_problematic_environment_vars()
+                
+                # Fallback to conservative configuration
+                self.update_status.emit({
+                    "text": f"Tentativa otimizada falhou ({str(e)[:50]}...), usando configuração conservadora...",
+                    "last_time": 0,
+                    "total_time": 0,
+                })
+                
+                try:
+                    model = WhisperModel(
+                        model_size,
+                        device="cpu",  # Force CPU
+                        compute_type="int8",  # Safe compute type
+                        cpu_threads=min(4, self.cpu_threads),  # Conservative thread count
+                    )
+                except Exception as e2:
+                    # Ultimate fallback with minimal configuration
+                    self.update_status.emit({
+                        "text": f"Configuração conservadora também falhou, usando configuração mínima...",
+                        "last_time": 0,
+                        "total_time": 0,
+                    })
+                    model = WhisperModel(
+                        "base",  # Force base model
+                        device="cpu",
+                        compute_type="int8",
+                    )
             self.update_status.emit(
                 {
                     "text": "Modelo carregado. Coletando e preparando arquivos...",
