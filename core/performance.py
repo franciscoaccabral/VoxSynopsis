@@ -18,15 +18,23 @@ def setup_fastwhisper_environment(conservative_mode: bool = False) -> None:
     
     Sets up CTranslate2 optimizations based on hardware detection:
     - OMP_NUM_THREADS: Use physical CPU cores for optimal threading
+    - CT2_INTER_THREADS: Number of parallel translations
+    - CT2_INTRA_THREADS: OpenMP threads per translation
     - CT2_USE_EXPERIMENTAL_PACKED_GEMM: Enable for Intel CPUs (if not conservative)
     - CT2_FORCE_CPU_ISA: Force AVX2 instruction set (if not conservative)
     - CT2_USE_MKL: Enable Intel MKL backend when available
     """
     # Get optimal thread count (physical cores)
     physical_cores = psutil.cpu_count(logical=False) or 1
+    logical_cores = psutil.cpu_count(logical=True) or 1
     
     # Core threading configuration (always safe)
     os.environ["OMP_NUM_THREADS"] = str(physical_cores)
+    
+    # Advanced CTranslate2 threading configuration
+    os.environ["CT2_INTER_THREADS"] = "1"  # Number of parallel translations
+    os.environ["CT2_INTRA_THREADS"] = str(physical_cores)  # OpenMP threads per translation
+    os.environ["CT2_MAX_QUEUED_BATCHES"] = "0"  # Auto-configuration
     
     if not conservative_mode:
         # Detect CPU architecture for specific optimizations
@@ -46,6 +54,11 @@ def setup_fastwhisper_environment(conservative_mode: bool = False) -> None:
     
     # Enable verbose logging for debugging (can be disabled in production)
     os.environ["CT2_VERBOSE"] = "0"  # Set to "1" for debugging
+    
+    # Log threading configuration
+    print(f"📊 Threading: {physical_cores} physical cores, {logical_cores} logical cores")
+    print(f"🔧 CT2_INTER_THREADS: {os.environ.get('CT2_INTER_THREADS')}")
+    print(f"🔧 CT2_INTRA_THREADS: {os.environ.get('CT2_INTRA_THREADS')}")
 
 
 def get_optimal_threading_config() -> Dict[str, Any]:
