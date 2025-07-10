@@ -27,8 +27,9 @@ class ConfigManager:
             "vad_speech_pad_ms": 400,
             "language": "pt",
             "temperature": 0.0,
-            "beam_size": 5,
-            "best_of": 5,
+            "beam_size": 1,                    # Otimizado: 5 → 1 (5x menos computação)
+            "best_of": 1,                      # Otimizado: 5 → 1 (5x menos tentativas)
+            "condition_on_previous_text": False, # Otimizado: processamento mais rápido
             "patience": 1.0,
             "parallel_processes": min(2, (os.cpu_count() or 1) // 2),
             "cpu_threads": (os.cpu_count() or 1) // 2,

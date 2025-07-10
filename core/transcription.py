@@ -7,7 +7,7 @@ import re
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import Any, List
 
 import psutil
 from faster_whisper import WhisperModel
@@ -15,6 +15,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 from .cache import FileCache
 from .config import MAX_WORKERS
+from .batch_transcription import BatchTranscriptionThread
 
 
 class TranscriptionThread(QThread):
@@ -40,6 +41,11 @@ class TranscriptionThread(QThread):
         )
         self.max_workers = min(MAX_WORKERS, self.parallel_processes)
 
+        # Batch processing settings
+        self.use_batch_processing = self.whisper_settings.pop("use_batch_processing", True)
+        self.batch_threshold = self.whisper_settings.pop("batch_threshold", 3)  # Min files for batch mode
+        self.batch_size = self.whisper_settings.pop("batch_size", 8)
+        
         # Smart chunking settings
         self.enable_smart_chunking = self.whisper_settings.pop(
             "enable_smart_chunking", False
@@ -57,6 +63,16 @@ class TranscriptionThread(QThread):
         self.regular_chunk_duration_seconds = self.whisper_settings.get(
             "chunk_duration_seconds", 60
         )
+    
+    def _check_batch_support(self) -> bool:
+        """Check if BatchedInferencePipeline is available and system supports batch processing."""
+        try:
+            from faster_whisper import BatchedInferencePipeline
+            # Check minimum memory requirement (8GB for batch processing)
+            memory_gb = psutil.virtual_memory().total / (1024**3)
+            return memory_gb >= 8
+        except ImportError:
+            return False
 
     def _split_audio_with_ffmpeg(self, filepath: str, chunk_duration: int) -> list[str]:
         base_name = os.path.splitext(os.path.basename(filepath))[0]
@@ -551,12 +567,46 @@ class TranscriptionThread(QThread):
                     "total_time": 0,
                 }
             )
-            model = WhisperModel(
-                model_size,
-                device=device,
-                compute_type=compute_type,
-                cpu_threads=self.cpu_threads,
-            )
+            # Try optimized configuration first, fallback to safe config if needed
+            try:
+                model = WhisperModel(
+                    model_size,
+                    device=device,
+                    compute_type=compute_type,
+                    cpu_threads=self.cpu_threads,
+                    num_workers=1,  # Otimizado: single worker para estabilidade CPU
+                )
+            except Exception as e:
+                # Clear potentially problematic environment variables
+                from .performance import clear_problematic_environment_vars
+                clear_problematic_environment_vars()
+                
+                # Fallback to conservative configuration
+                self.update_status.emit({
+                    "text": f"Tentativa otimizada falhou ({str(e)[:50]}...), usando configuração conservadora...",
+                    "last_time": 0,
+                    "total_time": 0,
+                })
+                
+                try:
+                    model = WhisperModel(
+                        model_size,
+                        device="cpu",  # Force CPU
+                        compute_type="int8",  # Safe compute type
+                        cpu_threads=min(4, self.cpu_threads),  # Conservative thread count
+                    )
+                except Exception as e2:
+                    # Ultimate fallback with minimal configuration
+                    self.update_status.emit({
+                        "text": f"Configuração conservadora também falhou, usando configuração mínima...",
+                        "last_time": 0,
+                        "total_time": 0,
+                    })
+                    model = WhisperModel(
+                        "base",  # Force base model
+                        device="cpu",
+                        compute_type="int8",
+                    )
             self.update_status.emit(
                 {
                     "text": "Modelo carregado. Coletando e preparando arquivos...",
@@ -578,8 +628,44 @@ class TranscriptionThread(QThread):
                 self.transcription_finished.emit("")
                 return
 
-            full_transcription = []
+            # Check if we should use batch processing
             total_files = len(files_to_transcribe)
+            should_use_batch = (
+                self.use_batch_processing and 
+                total_files >= self.batch_threshold and
+                hasattr(self, '_check_batch_support') and self._check_batch_support()
+            )
+            
+            if should_use_batch:
+                # Use advanced batch processing
+                self.update_status.emit({
+                    "text": f"🚀 Usando processamento em lote para {total_files} arquivos...",
+                    "last_time": 0,
+                    "total_time": 0,
+                })
+                
+                # Create batch processing settings
+                batch_settings = self.whisper_settings.copy()
+                batch_settings.update({
+                    "use_batched_inference": True,
+                    "batch_size": self.batch_size,
+                    "auto_batch_size": True
+                })
+                
+                # Start batch transcription thread
+                batch_thread = BatchTranscriptionThread(files_to_transcribe, batch_settings)
+                
+                # Connect signals
+                batch_thread.update_status.connect(self.update_status.emit)
+                batch_thread.update_transcription.connect(self.update_transcription.emit)
+                batch_thread.transcription_finished.connect(self.transcription_finished.emit)
+                
+                # Run batch processing
+                batch_thread.run()
+                return
+
+            # Fallback to sequential processing
+            full_transcription = []
             total_processing_time = 0
 
             for i, filepath in enumerate(files_to_transcribe):
