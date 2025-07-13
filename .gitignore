@@ -421,3 +421,11 @@ gravacoes/
 Tunning/
 config.json
 /.claude
+dist/vox_synopsis_fast_whisper.exe
+*.toc
+*.pyz
+*.pkg
+build/vox_synopsis_fast_whisper/warn-vox_synopsis_fast_whisper.txt
+*.html
+*.zip
+*.spec
