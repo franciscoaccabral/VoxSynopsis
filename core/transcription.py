@@ -667,6 +667,26 @@ class TranscriptionThread(QThread):
             # Fallback to sequential processing
             full_transcription = []
             total_processing_time = 0
+            processing_start_time = time.time()
+            
+            # Log detailed configuration info
+            config_info = [
+                f"\n{'='*60}",
+                f"🚀 INICIAÇÃO DO PROCESSAMENTO SEQUENCIAL",
+                f"{'='*60}",
+                f"⚙️ Configurações do FastWhisper:",
+                f"   • Modelo: {model_size}",
+                f"   • Dispositivo: {device}",
+                f"   • Tipo de computação: {compute_type}",
+                f"   • Threads CPU: {self.cpu_threads}",
+                f"   • Filtro VAD: {'Sim' if transcribe_params.get('vad_filter', False) else 'Não'}",
+                f"   • Idioma: {transcribe_params.get('language', 'auto')}",
+                f"   • Temperatura: {transcribe_params.get('temperature', 0.0)}",
+                f"   • Beam size: {transcribe_params.get('beam_size', 5)}",
+                f"   • Total de arquivos: {total_files}",
+                f"{'='*60}\n"
+            ]
+            self.update_transcription.emit("\n".join(config_info))
 
             for i, filepath in enumerate(files_to_transcribe):
                 if not self._is_running:
@@ -698,18 +718,66 @@ class TranscriptionThread(QThread):
                 last_file_time = end_time - start_time
                 total_processing_time += last_file_time
 
-                self.update_transcription.emit(
-                    f"--- {os.path.basename(filepath)} ---\n{transcription_text}\n\n"
+                # Calculate file duration for metrics
+                file_duration = self._get_audio_duration_ffmpeg(filepath)
+                real_time_factor = file_duration / last_file_time if last_file_time > 0 else 0
+                
+                transcription_with_metrics = (
+                    f"--- {os.path.basename(filepath)} ---\n"
+                    f"[Processado em {last_file_time:.1f}s | "
+                    f"Duração: {file_duration:.1f}s | "
+                    f"Fator tempo real: {real_time_factor:.1f}x]\n"
+                    f"{transcription_text}\n\n"
                 )
+                
+                self.update_transcription.emit(transcription_with_metrics)
                 full_transcription.append(
                     f"--- {os.path.basename(filepath)} ---\n{transcription_text}"
                 )
 
-            final_text = "\n\n".join(full_transcription)
+            # Generate comprehensive final report
+            processing_end_time = time.time()
+            total_elapsed_time = processing_end_time - processing_start_time
+            
+            # Combine transcriptions
+            transcription_content = "\n\n".join(full_transcription)
+            
+            # Add detailed processing statistics
+            stats_report = [
+                f"\n\n{'='*60}",
+                f"🎯 RELATÓRIO DE PROCESSAMENTO SEQUENCIAL",
+                f"{'='*60}",
+                f"📊 Estatísticas de Performance:",
+                f"   • Total de arquivos processados: {total_files}",
+                f"   • Tempo total de processamento: {total_processing_time:.1f}s ({total_processing_time/60:.1f} min)",
+                f"   • Tempo total decorrido: {total_elapsed_time:.1f}s ({total_elapsed_time/60:.1f} min)",
+                f"   • Tempo médio por arquivo: {total_processing_time/max(1, total_files):.1f}s",
+                f"   • Velocidade de processamento: {total_files/(total_processing_time/60):.1f} arquivos/min",
+                f"\n⚙️ Configurações Utilizadas:",
+                f"   • Modelo FastWhisper: {model_size}",
+                f"   • Dispositivo de processamento: {device}",
+                f"   • Tipo de computação: {compute_type}",
+                f"   • Threads CPU utilizadas: {self.cpu_threads}",
+                f"   • Filtro VAD ativo: {'Sim' if transcribe_params.get('vad_filter', False) else 'Não'}",
+                f"   • Idioma de transcrição: {transcribe_params.get('language', 'auto')}",
+                f"   • Temperatura: {transcribe_params.get('temperature', 0.0)}",
+                f"   • Beam size: {transcribe_params.get('beam_size', 5)}",
+                f"   • Condição no texto anterior: {'Sim' if transcribe_params.get('condition_on_previous_text', True) else 'Não'}",
+                f"\n💾 Processamento de Arquivos:",
+                f"   • Aceleração aplicada: {self.whisper_settings.get('acceleration_factor', 1.0)}x",
+                f"   • Chunking inteligente: {'Ativo' if self.enable_smart_chunking else 'Inativo'}",
+                f"   • Duração do chunk: {self.smart_chunk_duration_seconds}s",
+                f"   • Processos paralelos: {self.parallel_processes}",
+                f"{'='*60}"
+            ]
+            
+            # Combine transcriptions and statistics
+            final_text = transcription_content + "\n".join(stats_report)
+            
             self.transcription_finished.emit(final_text)
             self.update_status.emit(
                 {
-                    "text": "Transcrição concluída!",
+                    "text": f"Transcrição concluída! {total_files} arquivos em {total_processing_time:.1f}s",
                     "last_time": 0,
                     "total_time": total_processing_time,
                 }

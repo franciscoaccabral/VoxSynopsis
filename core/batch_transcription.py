@@ -37,6 +37,9 @@ class BatchTranscriptionThread(QThread):
         self._is_running = True
         self.file_cache = FileCache()
         
+        # Store settings for logging (before they get popped)
+        self.settings = whisper_settings.copy()
+        
         # Extract batch-specific settings
         self.use_batched_inference = self.whisper_settings.pop("use_batched_inference", True)
         self.batch_size = self.whisper_settings.pop("batch_size", 8)
@@ -336,34 +339,69 @@ class BatchTranscriptionThread(QThread):
     
     def _generate_final_report(self, successful_results: List[Dict], 
                              failed_results: List[Dict], total_time: float) -> str:
-        """Generate a comprehensive final report."""
-        report = []
-        report.append(f"🎯 Processamento em Lote Concluído")
-        report.append(f"{'='*50}")
-        report.append(f"📊 Estatísticas:")
-        report.append(f"   • Total de arquivos: {len(self.audio_files)}")
-        report.append(f"   • Processados com sucesso: {len(successful_results)}")
-        report.append(f"   • Falharam: {len(failed_results)}")
-        report.append(f"   • Tempo total: {total_time:.1f}s")
+        """Generate a comprehensive final report with statistics and full transcriptions."""
+        # Start with transcriptions section
+        full_transcriptions = []
+        
+        # Add all transcribed content
+        if successful_results:
+            for result in successful_results:
+                filename = os.path.basename(result['file_path'])
+                transcription = result.get('transcription', '').strip()
+                if transcription:
+                    full_transcriptions.append(f"--- {filename} ---\n{transcription}")
+        
+        # Combine all transcriptions
+        transcription_text = "\n\n".join(full_transcriptions)
+        
+        # Add statistics section
+        stats_report = []
+        stats_report.append(f"\n\n{'='*60}")
+        stats_report.append(f"🎯 RELATÓRIO DE PROCESSAMENTO EM LOTE")
+        stats_report.append(f"{'='*60}")
+        stats_report.append(f"📊 Estatísticas Gerais:")
+        stats_report.append(f"   • Total de arquivos: {len(self.audio_files)}")
+        stats_report.append(f"   • Processados com sucesso: {len(successful_results)}")
+        stats_report.append(f"   • Falharam: {len(failed_results)}")
+        stats_report.append(f"   • Tempo total de processamento: {total_time:.1f}s ({total_time/60:.1f} min)")
         
         if successful_results:
             avg_time = sum(r["processing_time"] for r in successful_results) / len(successful_results)
-            report.append(f"   • Tempo médio por arquivo: {avg_time:.1f}s")
+            stats_report.append(f"   • Tempo médio por arquivo: {avg_time:.1f}s")
+            total_duration = sum(r.get("duration", 0) for r in successful_results)
+            if total_duration > 0:
+                real_time_factor = total_duration / total_time
+                stats_report.append(f"   • Fator tempo real: {real_time_factor:.1f}x")
             
             # Calculate speedup estimation
             if len(successful_results) > 1:
                 sequential_estimate = sum(r["processing_time"] for r in successful_results)
                 speedup = sequential_estimate / total_time
-                report.append(f"   • Speedup estimado: {speedup:.1f}x")
+                stats_report.append(f"   • Speedup por paralelização: {speedup:.1f}x")
         
-        report.append(f"")
+        # Add configuration details
+        stats_report.append(f"\n⚙️ Configurações Utilizadas:")
+        stats_report.append(f"   • Modelo: {self.settings.get('model_size', 'N/A')}")
+        stats_report.append(f"   • Dispositivo: {self.settings.get('device', 'N/A')}")
+        stats_report.append(f"   • Tipo de computação: {self.settings.get('compute_type', 'N/A')}")
+        stats_report.append(f"   • Threads CPU: {self.settings.get('cpu_threads', 'N/A')}")
+        stats_report.append(f"   • Tamanho do lote: {self.settings.get('batch_size', 'N/A')}")
+        stats_report.append(f"   • Filtro VAD: {'Sim' if self.settings.get('vad_filter', False) else 'Não'}")
+        stats_report.append(f"   • Idioma: {self.settings.get('language', 'auto')}")
+        stats_report.append(f"   • Processamento em lote: {'Ativo' if self.use_batched_inference else 'Inativo'}")
+        stats_report.append(f"   • Temperatura: {self.settings.get('temperature', 0.0)}")
+        stats_report.append(f"   • Beam size: {self.settings.get('beam_size', 5)}")
         
         if failed_results:
-            report.append(f"❌ Arquivos com erro:")
+            stats_report.append(f"\n❌ Arquivos com erro:")
             for result in failed_results:
-                report.append(f"   • {os.path.basename(result['file_path'])}: {result.get('error', 'Erro desconhecido')}")
+                filename = os.path.basename(result['file_path'])
+                error_msg = result.get('error', 'Erro desconhecido')
+                stats_report.append(f"   • {filename}: {error_msg}")
         
-        return "\n".join(report)
+        # Combine transcriptions and statistics
+        final_report = transcription_text + "\n".join(stats_report)
+        return final_report
     
     def stop(self):
         """Stop the batch transcription process."""
