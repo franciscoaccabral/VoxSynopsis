@@ -62,6 +62,10 @@ class ConfigManager:
     def set(self, key: str, value: Any) -> None:
         """Define valor de configuração"""
         self.settings[key] = value
+    
+    def get_settings(self) -> dict[str, Any]:
+        """Retorna cópia das configurações atuais"""
+        return self.settings.copy()
 
 
 def load_stylesheet(app: Any) -> None:

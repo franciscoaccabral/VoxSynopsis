@@ -22,6 +22,7 @@ class TranscriptionThread(QThread):
     update_status = pyqtSignal(dict)
     update_transcription = pyqtSignal(str)
     transcription_finished = pyqtSignal(str)
+    completion_data_ready = pyqtSignal(dict)  # Forward completion data signal
 
     def __init__(self, audio_folder: str, whisper_settings: dict[str, Any]) -> None:
         super().__init__()
@@ -659,6 +660,7 @@ class TranscriptionThread(QThread):
                 batch_thread.update_status.connect(self.update_status.emit)
                 batch_thread.update_transcription.connect(self.update_transcription.emit)
                 batch_thread.transcription_finished.connect(self.transcription_finished.emit)
+                batch_thread.completion_data_ready.connect(self.completion_data_ready.emit)
                 
                 # Run batch processing
                 batch_thread.run()
@@ -730,6 +732,9 @@ class TranscriptionThread(QThread):
                     f"{transcription_text}\n\n"
                 )
                 
+                # Salva transcrição individual com nome baseado no arquivo original
+                individual_file = self._save_individual_transcription(filepath, transcription_text)
+                
                 self.update_transcription.emit(transcription_with_metrics)
                 full_transcription.append(
                     f"--- {os.path.basename(filepath)} ---\n{transcription_text}"
@@ -774,6 +779,9 @@ class TranscriptionThread(QThread):
             # Combine transcriptions and statistics
             final_text = transcription_content + "\n".join(stats_report)
             
+            # Limpeza de arquivos temporários após processamento
+            self._cleanup_chunks_and_temp_files()
+            
             self.transcription_finished.emit(final_text)
             self.update_status.emit(
                 {
@@ -794,7 +802,66 @@ class TranscriptionThread(QThread):
             )
             self.transcription_finished.emit("")
 
+    def _cleanup_chunks_and_temp_files(self, directory: str = None):
+        """Remove chunks e arquivos temporários após processamento."""
+        if directory is None:
+            directory = self.audio_folder
+        
+        cleanup_patterns = [
+            "*_chunk_*.wav",
+            "*_ffmpeg_chunk_*.wav", 
+            "*_silence_chunk_*.wav",
+            "*_accelerated*.wav",
+            "*_processed*.wav",
+            "*_extracted*.wav"
+        ]
+        
+        import glob
+        cleaned_files = 0
+        
+        for pattern in cleanup_patterns:
+            pattern_path = os.path.join(directory, pattern)
+            for file_path in glob.glob(pattern_path):
+                try:
+                    os.remove(file_path)
+                    cleaned_files += 1
+                except Exception as e:
+                    logger.warning(f"Erro ao remover arquivo temporário {file_path}: {e}")
+        
+        if cleaned_files > 0:
+            logger.info(f"Limpeza concluída: {cleaned_files} arquivos temporários removidos")
+            self.update_status.emit({
+                "text": f"Limpeza: {cleaned_files} arquivos temporários removidos",
+                "last_time": 0,
+                "total_time": 0,
+            })
+
+    def _save_individual_transcription(self, filepath: str, transcription_text: str):
+        """Salva transcrição individual com nome baseado no arquivo original."""
+        if not transcription_text.strip():
+            return None
+            
+        # Gera nome do arquivo de transcrição baseado no arquivo original
+        base_name = os.path.splitext(os.path.basename(filepath))[0]
+        transcription_filename = f"{base_name}_transcricao.txt"
+        transcription_path = os.path.join(self.audio_folder, transcription_filename)
+        
+        try:
+            with open(transcription_path, "w", encoding="utf-8") as f:
+                f.write(f"Transcrição de: {os.path.basename(filepath)}\n")
+                f.write(f"Gerado em: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write("=" * 60 + "\n\n")
+                f.write(transcription_text)
+            
+            logger.info(f"Transcrição individual salva: {transcription_path}")
+            return transcription_path
+        except Exception as e:
+            logger.error(f"Erro ao salvar transcrição individual: {e}")
+            return None
+
     def stop(self):
         self._is_running = False
+        # Limpa chunks e arquivos temporários
+        self._cleanup_chunks_and_temp_files()
         # Limpa o cache ao parar
         self.file_cache.clear_stale_entries()

@@ -2,6 +2,7 @@
 
 import json
 import os
+import time
 from typing import Any
 
 import psutil
@@ -16,6 +17,7 @@ from .config import OUTPUT_DIR, ConfigManager
 from .recording import RecordingThread, DeviceInfo
 from .transcription import TranscriptionThread
 from .settings_dialog import FastWhisperSettingsDialog
+from .completion_popup import CompletionPopup
 
 
 class AudioRecorderApp(QMainWindow, Ui_MainWindow):
@@ -126,6 +128,11 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
         self.transcription_thread.transcription_finished.connect(
             self.on_transcription_finished
         )
+        # Connect to completion data signal for popup
+        if hasattr(self.transcription_thread, 'completion_data_ready'):
+            self.transcription_thread.completion_data_ready.connect(
+                self.show_completion_popup
+            )
         self.transcription_thread.start()
 
     def update_transcription_status(self, status_dict):
@@ -158,9 +165,14 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
         if not self.recording_thread or not self.recording_thread.isRunning():
             self.stop_button.setEnabled(False)
         if full_text:
-            save_path = os.path.join(self.output_path, "transcricao_completa.txt")
+            # Gera nome do arquivo com timestamp
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            save_path = os.path.join(self.output_path, f"transcricao_completa_{timestamp}.txt")
             try:
                 with open(save_path, "w", encoding="utf-8") as f:
+                    f.write(f"Transcrição Completa - VoxSynopsis\n")
+                    f.write(f"Gerado em: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                    f.write("=" * 80 + "\n\n")
                     f.write(full_text)
                     self.update_transcription_status(
                         {
@@ -179,6 +191,22 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
                         "total_time": 0,
                     }
                 )
+
+    def show_completion_popup(self, performance_data: dict):
+        """Exibe popup de conclusão com informações de desempenho."""
+        try:
+            # Show completion popup
+            CompletionPopup.show_completion_popup(performance_data, self)
+        except Exception as e:
+            print(f"Erro ao exibir popup de conclusão: {e}")
+            # Fallback to simple message
+            QMessageBox.information(
+                self, 
+                "Transcrição Concluída", 
+                f"Processamento concluído!\n"
+                f"Arquivos processados: {performance_data.get('successful_files', 0)}/{performance_data.get('total_files', 0)}\n"
+                f"Tempo total: {performance_data.get('total_processing_time', 0):.1f}s"
+            )
 
     def populate_devices(self):
         self.device_combo.clear()
