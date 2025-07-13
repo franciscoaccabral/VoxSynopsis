@@ -215,13 +215,17 @@ class CompletionPopup(QDialog):
         """Gera conteúdo detalhado para a seção de informações."""
         lines = []
         
+        # Debug: Print available keys
+        print(f"DEBUG: Performance data keys: {list(self.performance_data.keys())}")
+        
         # Informações de timing
-        if 'start_time' in self.performance_data:
-            start_time = self.performance_data['start_time']
+        start_time = self.performance_data.get('start_time', 'N/A')
+        end_time = self.performance_data.get('end_time', 'N/A')
+        
+        if start_time != 'N/A':
             lines.append(f"🕐 Início: {start_time}")
         
-        if 'end_time' in self.performance_data:
-            end_time = self.performance_data['end_time']
+        if end_time != 'N/A':
             lines.append(f"🕑 Fim: {end_time}")
         
         # Performance metrics
@@ -245,10 +249,16 @@ class CompletionPopup(QDialog):
         if speedup > 1:
             lines.append(f"🚀 Speedup por Paralelização: {speedup:.1f}x")
         
-        # Configuration summary
+        # Configuration summary - with debug
         model = self.performance_data.get('model_size', 'N/A')
         device = self.performance_data.get('device', 'N/A')
+        compute_type = self.performance_data.get('compute_type', 'N/A')
+        
+        print(f"DEBUG: Model: {model}, Device: {device}, Compute: {compute_type}")
+        
         lines.append(f"⚙️ Modelo: {model} | Dispositivo: {device}")
+        if compute_type != 'N/A':
+            lines.append(f"🔧 Tipo de Computação: {compute_type}")
         
         # Error details
         failed_files = self.performance_data.get('failed_files', 0)

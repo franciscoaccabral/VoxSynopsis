@@ -323,6 +323,11 @@ class BatchTranscriptionThread(QThread):
     
     def run(self):
         """Main execution thread for batch transcription with enhanced monitoring."""
+        successful_results = []
+        failed_results = []
+        total_time = 0
+        final_report = ""
+        
         try:
             # Start enhanced monitoring
             self.timestamp_manager.start_session("batch_transcription")
@@ -356,9 +361,6 @@ class BatchTranscriptionThread(QThread):
             # Limpeza de arquivos temporários após processamento em lote
             self._cleanup_chunks_and_temp_files()
             
-            # Prepare performance data for popup
-            completion_data = self._prepare_completion_data(successful_results, failed_results, total_time, final_report)
-            
             self.update_status.emit({
                 "text": f"Batch concluído: {len(successful_results)}/{len(results)} arquivos processados",
                 "progress": 100,
@@ -366,8 +368,6 @@ class BatchTranscriptionThread(QThread):
                 "final_report": final_report
             })
             
-            # Emit completion data for popup
-            self.completion_data_ready.emit(completion_data)
             self.transcription_finished.emit(final_report)
             
         except Exception as e:
@@ -382,6 +382,11 @@ class BatchTranscriptionThread(QThread):
             # Stop monitoring and finalize session
             self.performance_monitor.stop_monitoring()
             self.timestamp_manager.end_session("batch_transcription")
+            
+            # Prepare performance data for popup after session is finalized
+            if successful_results or failed_results:  # Only emit if we have some results
+                completion_data = self._prepare_completion_data(successful_results, failed_results, total_time, final_report)
+                self.completion_data_ready.emit(completion_data)
     
     def _prepare_completion_data(self, successful_results: List[Dict], 
                                failed_results: List[Dict], total_time: float, 
@@ -397,6 +402,20 @@ class BatchTranscriptionThread(QThread):
         # Get system information
         timing_summary = self.timestamp_manager.get_session_summary()
         
+        # Get current time for end_time if not available
+        from datetime import datetime, timezone
+        current_time = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+        
+        # Get model information from original settings (before they were modified)
+        model_size = self.settings.get('model_size') or self.whisper_settings.get('model_size', 'base')
+        device = self.settings.get('device') or self.whisper_settings.get('device', 'cpu')
+        compute_type = self.settings.get('compute_type') or self.whisper_settings.get('compute_type', 'int8')
+        
+        # Debug logging
+        print(f"DEBUG Batch: Settings: {self.settings}")
+        print(f"DEBUG Batch: WhisperSettings: {self.whisper_settings}")
+        print(f"DEBUG Batch: Final values - Model: {model_size}, Device: {device}, Compute: {compute_type}")
+        
         return {
             'total_files': len(self.audio_files),
             'successful_files': len(successful_results),
@@ -407,10 +426,10 @@ class BatchTranscriptionThread(QThread):
             'audio_duration_total': total_audio_duration,
             'speedup': speedup,
             'start_time': timing_summary.get('start_time', 'N/A'),
-            'end_time': timing_summary.get('end_time', 'N/A'),
-            'model_size': self.settings.get('model_size', 'N/A'),
-            'device': self.settings.get('device', 'N/A'),
-            'compute_type': self.settings.get('compute_type', 'N/A'),
+            'end_time': timing_summary.get('end_time', current_time),
+            'model_size': model_size,
+            'device': device,
+            'compute_type': compute_type,
             'full_report': final_report,
             'failed_results': failed_results
         }

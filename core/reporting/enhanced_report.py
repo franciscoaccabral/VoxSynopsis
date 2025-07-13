@@ -288,23 +288,30 @@ class EnhancedReportGenerator:
         return "\n".join(analysis_lines)
     
     def _generate_transcription_section(self, transcriptions: List[Dict[str, Any]]) -> str:
-        """Generate transcription content section."""
+        """Generate transcription content section with all content."""
         if not transcriptions:
             return ""
         
         content_lines = ["📝 CONTEÚDO TRANSCRITO:"]
         content_lines.append("=" * 60)
         
-        for i, transcription in enumerate(transcriptions[:10]):  # Limit to first 10
+        # Include ALL transcriptions without limitation
+        for i, transcription in enumerate(transcriptions):
             filename = transcription.get('filename', f'Arquivo {i+1}')
             content = transcription.get('content', '').strip()
             
             if content:
                 content_lines.append(f"\n--- {filename} ---")
                 content_lines.append(content)
+            else:
+                # Show files even if they have no content (for transparency)
+                content_lines.append(f"\n--- {filename} ---")
+                content_lines.append("(Sem conteúdo transcrito)")
         
-        if len(transcriptions) > 10:
-            content_lines.append(f"\n[... e mais {len(transcriptions) - 10} transcrições]")
+        # Add summary at the end
+        content_lines.append(f"\n{'='*60}")
+        content_lines.append(f"📊 Total de arquivos: {len(transcriptions)}")
+        content_lines.append(f"📄 Arquivos com conteúdo: {len([t for t in transcriptions if t.get('content', '').strip()])}")
         
         return "\n".join(content_lines)
     
