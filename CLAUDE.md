@@ -10,17 +10,17 @@ VoxSynopsis is a Python desktop application for high-quality audio recording and
 
 ### Running the Application
 ```bash
-python vox_synopsis_fast_whisper.py
+python3 vox_synopsis_fast_whisper.py
 ```
 
 ### Installing Dependencies
 ```bash
-pip install -r requirements.txt
+pipx install -r requirements.txt
 ```
 
 ### Testing
 ```bash
-python -m pytest Tests/
+python3 -m pytest Tests/
 ```
 
 ### Code Quality
@@ -302,3 +302,228 @@ gemini -m gemini-2.5-pro -p "@core/ What are the performance characteristics of 
 6. **Iterative Approach**: Gather information with Gemini, then execute with Claude Code
 
 This division ensures optimal use of each AI's strengths while maintaining efficient development workflows.
+
+## Advanced Prompt Engineering for Gemini CLI
+
+### MANDATORY: Always Use Structured Prompts
+When using Gemini CLI, always follow this prompt engineering framework:
+
+```bash
+gemini -m [model] -p "@[context_files] 
+
+## Context
+[Provide comprehensive background about the project, current state, and relevant constraints]
+
+## Task
+[Detailed description of what you want Gemini to analyze or do]
+
+## Expected Output
+[Specify exact format, level of detail, structure, and scope of the analysis]
+
+## Specific Focus Areas
+[List specific aspects to emphasize in the analysis]
+
+[Your specific request here]"
+```
+
+### Structured Analysis Examples
+
+**Basic Information Gathering (Flash):**
+```bash
+# Quick project overview with context
+gemini -m gemini-2.5-flash -p "@./ 
+
+## Context
+VoxSynopsis is a Python desktop audio recording and transcription application with modular architecture using FastWhisper.
+
+## Task
+Analyze the project structure and provide an overview of main components.
+
+## Expected Output
+- Bullet-point list of main directories and their purposes
+- Key dependencies identified
+- Architecture overview in 3-4 sentences
+
+What files and directories exist in this project and what is their purpose?"
+```
+
+**Deep Analysis (Pro):**
+```bash
+# Comprehensive architectural analysis with structured prompt
+gemini -m gemini-2.5-pro -p "@core/ @Tests/ 
+
+## Context
+VoxSynopsis features a modular architecture with enhanced reporting system, performance monitoring, and FastWhisper integration. The codebase follows Python best practices with comprehensive type hints.
+
+## Task
+Perform a comprehensive architecture analysis focusing on code quality, design patterns, and potential improvements.
+
+## Expected Output
+1. Architecture strengths and weaknesses
+2. Design pattern usage assessment
+3. Code quality metrics and observations
+4. Specific improvement recommendations with rationale
+5. Potential refactoring opportunities
+
+## Specific Focus Areas
+- Modularity and separation of concerns
+- Error handling and resilience
+- Performance optimization opportunities
+- Testing coverage and quality
+
+Analyze the software architecture and identify potential improvements."
+```
+
+## Mandatory Code Review Process
+
+### ALWAYS Use Gemini CLI for:
+
+#### 1. Peer Code Review (Before Integration)
+**MANDATORY**: Always execute before code integration:
+```bash
+gemini -m gemini-2.5-pro -p "@path/to/changed/files 
+
+## Context
+VoxSynopsis codebase follows strict quality standards with comprehensive type hints, modular architecture, and graceful error handling. Code must adhere to established patterns.
+
+## Task
+Perform comprehensive peer code review focusing on quality, security, and maintainability.
+
+## Expected Output
+1. Code quality assessment (1-10 scale with justification)
+2. Specific bug risks or edge cases identified
+3. Security considerations and potential vulnerabilities
+4. Performance implications analysis
+5. Maintainability and readability evaluation
+6. Adherence to project conventions assessment
+7. Actionable improvement recommendations
+
+## Specific Focus Areas
+- Type safety and error handling
+- Performance optimization opportunities
+- Security best practices
+- Code consistency with existing patterns
+
+Review this code implementation for best practices, potential bugs, and improvement suggestions."
+```
+
+#### 2. Plan Review (Before Implementation)
+**MANDATORY**: Always execute before implementing development plans:
+```bash
+gemini -m gemini-2.5-pro -p "@./ 
+
+## Context
+VoxSynopsis is a production-ready application with established architecture patterns, comprehensive testing strategy, and strict quality standards.
+
+## Task
+Critically analyze the proposed development plan to identify gaps, risks, and optimization opportunities.
+
+## Expected Output
+1. Completeness assessment: missing steps or considerations
+2. Technical feasibility analysis with risk factors
+3. Dependencies and prerequisites identification
+4. Alternative approach suggestions with trade-offs
+5. Implementation timeline and resource estimates
+6. Testing and validation strategy review
+7. Potential blockers and mitigation strategies
+
+## Specific Focus Areas
+- Technical feasibility and complexity
+- Integration with existing architecture
+- Testing and quality assurance approach
+- Risk assessment and mitigation
+
+Plan: [DETAILED_PLAN_DESCRIPTION]
+
+Review this development plan and identify missing steps, potential challenges, and suggest improvements."
+```
+
+### Code Review Checklist
+Before considering any implementation complete, verify with Gemini CLI:
+- ✅ **Code Quality**: Coding standards, naming conventions, structure
+- ✅ **Security**: Vulnerabilities, input validation, sanitization
+- ✅ **Performance**: Optimizations, bottlenecks, resource usage
+- ✅ **Testing**: Test coverage, edge cases
+- ✅ **Documentation**: Docstrings, comments, type hints
+- ✅ **Architecture**: Adherence to project patterns
+
+### Plan Review Checklist
+Before executing any development plan:
+- ✅ **Completeness**: All necessary steps included
+- ✅ **Feasibility**: Technical viability of proposed solutions
+- ✅ **Dependencies**: Dependencies and prerequisites identified
+- ✅ **Risk Assessment**: Risk identification and mitigation strategies
+- ✅ **Alternative Approaches**: Consideration of alternative approaches
+- ✅ **Testing Strategy**: Testing and validation plan
+
+## Code Quality Standards
+
+### Type Hints and Documentation
+- **Type Annotations**: Comprehensive typing throughout codebase
+- **Docstrings**: Detailed function and class documentation
+- **Logging**: Structured logging with appropriate levels
+- **Error Handling**: Graceful degradation with informative messages
+
+### Testing Strategy
+- **Framework**: pytest for unit and integration tests
+- **Mocking**: External services and hardware dependencies
+- **Coverage Target**: ≥85% code coverage
+- **Tests**: Integration and unit tests with edge cases
+
+### Code Consistency Rules
+- **Import Order**: Standard library, third-party, local imports
+- **Naming**: snake_case for functions/variables, PascalCase for classes
+- **Error Messages**: Use f-strings with descriptive context
+- **Logging**: Use module-level loggers, not print statements
+
+## Development Guidelines
+
+### Adding New Features
+1. **Modular Design**: Place new components in appropriate core/ subdirectories
+2. **Fallback Support**: Always implement graceful degradation
+3. **Type Safety**: Add comprehensive type hints
+4. **Testing**: Include unit tests with mocks
+5. **Documentation**: Update both docstrings and CLAUDE.md
+6. **Mandatory Review**: Use Gemini CLI for plan and code review
+
+### Enhanced Decision Matrix
+
+| Task Type | Claude Code | Gemini Flash | Gemini Pro |
+|-----------|-------------|--------------|------------|
+| Writing new code | ✅ | ❌ | ❌ |
+| Debugging existing code | ✅ | ❌ | ❌ |
+| Running tests/builds | ✅ | ❌ | ❌ |
+| Quick file search | ❌ | ✅ | ❌ |
+| Architecture analysis | ❌ | ❌ | ✅ |
+| Security audit | ❌ | ❌ | ✅ |
+| Basic documentation | ❌ | ✅ | ❌ |
+| Complex problem solving | ✅ | ❌ | ✅ |
+| Performance optimization | ✅ | ❌ | ✅ |
+| Code refactoring | ✅ | ❌ | ❌ |
+| **Peer code review** | ❌ | ❌ | ✅ |
+| **Plan review & validation** | ❌ | ❌ | ✅ |
+| **Risk assessment** | ❌ | ❌ | ✅ |
+| **Design pattern analysis** | ❌ | ❌ | ✅ |
+
+## Quality Assurance Workflow
+
+### Before Implementation
+1. **Plan Creation**: Use Claude Code to create detailed implementation plan
+2. **Plan Review**: Use Gemini Pro to validate plan completeness and feasibility
+3. **Implementation**: Use Claude Code for actual coding
+4. **Code Review**: Use Gemini Pro for comprehensive code review
+5. **Testing**: Run tests and verify quality checks
+6. **Integration**: Only after all reviews pass
+
+### Best Practices Summary
+
+1. **Structured Prompts**: Always use the context-task-output framework for Gemini CLI
+2. **Start with Flash**: Use gemini-2.5-flash for initial exploration and simple queries
+3. **Escalate to Pro**: Switch to gemini-2.5-pro for deep analysis or reasoning
+4. **Specify Context**: Always use `@` syntax to include relevant files/directories
+5. **Be Specific**: Clear, focused questions with expected output format
+6. **Combine Tools**: Use Gemini for analysis, then Claude Code for implementation
+7. **Mandatory Reviews**: Always perform code and plan reviews before implementation
+8. **Quality First**: Prioritize code quality and maintainability over speed
+
+This comprehensive workflow ensures high-quality development with systematic critical review at every stage.
