@@ -203,3 +203,102 @@ VoxSynopsis/
 - **Model Loading**: Graceful handling of missing or invalid model configurations
 - **FFmpeg Integration**: Robust error handling for external process calls
 - **Thread Safety**: Proper cleanup and resource management in threading components
+
+## Gemini CLI Usage Patterns
+
+### Basic Information Gathering (use flash):
+```bash
+# Quick project overview
+gemini -m gemini-2.5-flash -p "@./ What files and directories exist in this project?"
+
+# Find specific implementations
+gemini -m gemini-2.5-flash -p "@core/ Does this codebase have dark mode implemented?"
+
+# Check dependencies
+gemini -m gemini-2.5-flash -p "@requirements.txt @package.json List all project dependencies"
+```
+
+### Deep Analysis Tasks (use pro):
+```bash
+# Architectural analysis
+gemini -m gemini-2.5-pro -p "@core/ @tests/ Analyze the software architecture and identify potential improvements"
+
+# Security review
+gemini -m gemini-2.5-pro -p "@./ Perform a security audit and identify potential vulnerabilities"
+
+# Performance analysis
+gemini -m gemini-2.5-pro -p "@core/ Identify performance bottlenecks and suggest optimizations"
+```
+
+### File and Directory Inclusion Syntax:
+```bash
+# Single file analysis
+gemini -p "@core/gui.py Explain this file's purpose and structure"
+
+# Multiple files
+gemini -p "@core/core.py @core/cli.py Compare these two files and explain their relationship"
+
+# Entire directory
+gemini -p "@core/ Summarize the architecture of this module"
+
+# Multiple directories
+gemini -p "@core/ @tests/ Analyze test coverage for the source code"
+
+# Current directory (complete project)
+gemini -p "@./ Give me an overview of this entire project"
+
+# Alternative syntax for entire project
+gemini --all_files -p "Analyze the project structure and dependencies"
+```
+
+## Decision Matrix: When to Use Which Tool
+
+| Task Type | Claude Code | Gemini Flash | Gemini Pro |
+|-----------|-------------|--------------|------------|
+| Writing new code | ✅ | ❌ | ❌ |
+| Debugging existing code | ✅ | ❌ | ❌ |
+| Running tests/builds | ✅ | ❌ | ❌ |
+| Quick file search | ❌ | ✅ | ❌ |
+| Architecture analysis | ❌ | ❌ | ✅ |
+| Security audit | ❌ | ❌ | ✅ |
+| Basic documentation | ❌ | ✅ | ❌ |
+| Complex problem solving | ✅ | ❌ | ✅ |
+| Performance optimization | ✅ | ❌ | ✅ |
+| Code refactoring | ✅ | ❌ | ❌ |
+
+## Implementation Verification Examples
+
+### Quick Checks (Flash):
+```bash
+# Check if feature exists
+gemini -m gemini-2.5-flash -p "@core/ Is dark mode implemented? Show me the relevant files"
+
+# Find specific functions
+gemini -m gemini-2.5-flash -p "@core/ List all functions that handle video processing"
+
+# Dependency check
+gemini -m gemini-2.5-flash -p "@./ What UI framework is this project using?"
+```
+
+### Deep Analysis (Pro):
+```bash
+# Comprehensive feature analysis
+gemini -m gemini-2.5-pro -p "@core/ @tests/ How robust is the error handling throughout the application?"
+
+# Security assessment
+gemini -m gemini-2.5-pro -p "@./ Are there any security vulnerabilities in file handling or user input processing?"
+
+# Performance review
+gemini -m gemini-2.5-pro -p "@core/ What are the performance characteristics of the summarization system?"
+```
+
+## Best Practices
+
+1. **Start with Flash**: Use gemini-2.5-flash for initial exploration and simple queries
+2. **Escalate to Pro**: Switch to gemini-2.5-pro when you need deep analysis or reasoning
+3. **Specify Context**: Always use `@` syntax to include relevant files/directories
+4. **Be Specific**: Clear, focused questions get better results
+5. **Combine Tools**: Use Gemini for analysis, then Claude Code for implementation
+6. **Iterative Approach**: Gather information with Gemini, then execute with Claude Code
+
+This division ensures optimal use of each AI's strengths while maintaining efficient development workflows.
