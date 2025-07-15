@@ -18,6 +18,8 @@ from PyQt5.QtCore import QThread, pyqtSignal
 from .performance import get_optimal_threading_config, get_hardware_info
 from .cache import FileCache
 from .reporting import SystemProfiler, PerformanceMonitor, TimestampManager, EnhancedReportGenerator
+from .loop_detector import LightweightLoopDetector, QuickQualityValidator
+from .recovery_manager import CoreRecoveryManager
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,11 @@ class BatchTranscriptionThread(QThread):
     transcription_finished = pyqtSignal(str)
     completion_data_ready = pyqtSignal(dict)  # New signal for performance data
     batch_progress = pyqtSignal(dict)  # New signal for batch-specific progress
+    
+    # Anti-loop system signals
+    loop_detected = pyqtSignal(dict)         # When loop is detected
+    recovery_started = pyqtSignal(dict)      # Recovery process begins
+    recovery_completed = pyqtSignal(dict)    # Recovery process ends
     
     def __init__(self, audio_files: List[str], whisper_settings: Dict[str, Any]):
         super().__init__()
@@ -60,6 +67,11 @@ class BatchTranscriptionThread(QThread):
         # Threading configuration
         self.thread_config = get_optimal_threading_config()
         self.max_workers = min(4, len(audio_files))
+        
+        # Anti-loop recovery system
+        self.loop_detector = LightweightLoopDetector()
+        self.quality_validator = QuickQualityValidator()
+        self.recovery_manager = None  # Will be initialized with transcription function
         
         # Performance monitoring
         self.batch_stats = {
@@ -164,6 +176,12 @@ class BatchTranscriptionThread(QThread):
             # Convert segments to list and extract text
             segments_list = list(segments)
             transcription_text = " ".join([segment.text for segment in segments_list])
+            
+            # Anti-loop detection and recovery
+            transcription_text = self._apply_anti_loop_recovery(
+                transcription_text, file_path, 
+                info.duration if info else None, model
+            )
             
             # Salva transcrição individual com nome baseado no arquivo original
             individual_file = self._save_individual_transcription(file_path, transcription_text)
@@ -280,6 +298,11 @@ class BatchTranscriptionThread(QThread):
                 
                 segments_list = list(segments)
                 transcription_text = " ".join([segment.text for segment in segments_list])
+                
+                # Anti-loop detection and recovery  
+                transcription_text = self._apply_anti_loop_recovery(
+                    transcription_text, file_path, None, model
+                )
                 
                 # Salva transcrição individual com nome baseado no arquivo original
                 individual_file = self._save_individual_transcription(file_path, transcription_text)
@@ -606,6 +629,123 @@ class BatchTranscriptionThread(QThread):
         except Exception as e:
             logger.error(f"Erro ao salvar transcrição individual: {e}")
             return None
+
+    def _apply_anti_loop_recovery(self, 
+                                transcription_text: str, 
+                                audio_path: str, 
+                                audio_duration: Optional[float],
+                                model) -> str:
+        """
+        Apply anti-loop detection and recovery in batch processing context.
+        
+        Args:
+            transcription_text: Original transcription result
+            audio_path: Path to the audio file
+            audio_duration: Duration of the audio (may be None)
+            model: FastWhisper model instance
+            
+        Returns:
+            Corrected transcription text (original if no issues found)
+        """
+        if not transcription_text or not transcription_text.strip():
+            return transcription_text
+        
+        # Initialize recovery manager with transcription function
+        if self.recovery_manager is None:
+            self.recovery_manager = CoreRecoveryManager(
+                lambda path, settings: self._transcribe_with_model(model, path, settings)
+            )
+        
+        # Detect potential loops
+        detection_result = self.loop_detector.detect(transcription_text, audio_duration)
+        
+        # Debug: Always print detection result for troubleshooting
+        print(f"🔍 [BATCH] Anti-loop check: {os.path.basename(audio_path)} - Loop: {detection_result.has_loop}")
+        if detection_result.has_loop:
+            print(f"  Tipo: {detection_result.loop_type}, Confiança: {detection_result.confidence:.2f}")
+        
+        if detection_result.has_loop:
+            # Emit loop detected signal
+            self.loop_detected.emit({
+                'file': os.path.basename(audio_path),
+                'loop_type': detection_result.loop_type,
+                'confidence': detection_result.confidence,
+                'pattern': detection_result.pattern
+            })
+            
+            self.update_status.emit({
+                "text": f"🔄 [BATCH] Loop detectado em {os.path.basename(audio_path)} - Iniciando recuperação...",
+                "processing_files": 0,
+                "total_files": 0,
+            })
+            
+            # Emit recovery started signal
+            self.recovery_started.emit({
+                'file': os.path.basename(audio_path),
+                'original_text': transcription_text[:100] + "..." if len(transcription_text) > 100 else transcription_text,
+                'problem': detection_result.loop_type
+            })
+            
+            # For batch processing, we need to create settings dict from whisper_settings
+            transcribe_params = {
+                key: self.whisper_settings.get(key)
+                for key in ["language", "vad_filter", "temperature", "best_of", "beam_size", "condition_on_previous_text"]
+                if key in self.whisper_settings
+            }
+            
+            # Attempt recovery
+            recovery_result = self.recovery_manager.recover_transcription(
+                audio_path, transcription_text, transcribe_params, audio_duration
+            )
+            
+            # Emit recovery completed signal
+            self.recovery_completed.emit({
+                'file': os.path.basename(audio_path),
+                'success': recovery_result.success,
+                'strategy_used': recovery_result.strategy_used.value,
+                'attempts_made': recovery_result.attempts_made,
+                'processing_time': recovery_result.processing_time,
+                'quality_score': recovery_result.quality_score
+            })
+            
+            if recovery_result.success:
+                self.update_status.emit({
+                    "text": f"✅ [BATCH] Recuperação bem-sucedida para {os.path.basename(audio_path)} "
+                           f"(Estratégia: {recovery_result.strategy_used.value})",
+                    "processing_files": 0,
+                    "total_files": 0,
+                })
+                return recovery_result.text
+            else:
+                self.update_status.emit({
+                    "text": f"⚠️ [BATCH] Recuperação falhou para {os.path.basename(audio_path)} - "
+                           f"Usando resultado original",
+                    "processing_files": 0,
+                    "total_files": 0,
+                })
+                return transcription_text
+        
+        # No loop detected, check quality
+        quality_score = self.quality_validator.validate(transcription_text, audio_duration)
+        if quality_score < 0.4:  # Very low quality threshold
+            self.update_status.emit({
+                "text": f"⚠️ [BATCH] Qualidade baixa detectada em {os.path.basename(audio_path)} "
+                       f"(Score: {quality_score:.2f})",
+                "processing_files": 0,
+                "total_files": 0,
+            })
+        
+        return transcription_text
+    
+    def _transcribe_with_model(self, model, audio_path: str, settings: dict) -> str:
+        """
+        Transcribe audio using the provided model and settings for recovery.
+        """
+        try:
+            segments, _ = model.transcribe(audio_path, **settings)
+            return " ".join([segment.text for segment in segments])
+        except Exception as e:
+            raise Exception(f"Transcription failed: {str(e)}")
 
     def stop(self):
         """Stop the batch transcription process."""

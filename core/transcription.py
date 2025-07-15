@@ -674,6 +674,11 @@ class TranscriptionThread(QThread):
                 batch_thread.transcription_finished.connect(self.transcription_finished.emit)
                 batch_thread.completion_data_ready.connect(self.completion_data_ready.emit)
                 
+                # Connect anti-loop signals
+                batch_thread.loop_detected.connect(self.loop_detected.emit)
+                batch_thread.recovery_started.connect(self.recovery_started.emit)
+                batch_thread.recovery_completed.connect(self.recovery_completed.emit)
+                
                 # Run batch processing
                 batch_thread.run()
                 return
@@ -907,6 +912,11 @@ class TranscriptionThread(QThread):
         
         # Detect potential loops
         detection_result = self.loop_detector.detect(transcription_text, audio_duration)
+        
+        # Debug: Always print detection result for troubleshooting
+        print(f"🔍 Anti-loop check: {os.path.basename(audio_path)} - Loop: {detection_result.has_loop}")
+        if detection_result.has_loop:
+            print(f"  Tipo: {detection_result.loop_type}, Confiança: {detection_result.confidence:.2f}")
         
         if detection_result.has_loop:
             # Emit loop detected signal
