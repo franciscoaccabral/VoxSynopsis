@@ -15,7 +15,7 @@ python3 vox_synopsis_fast_whisper.py
 
 ### Installing Dependencies
 ```bash
-pipx install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
 ### Testing
@@ -121,6 +121,63 @@ Core libraries:
 - noisereduce: Audio post-processing
 - torch: ML backend for FastWhisper
 - psutil: System resource monitoring
+
+## CUDA Acceleration
+
+### 🚀 Comprehensive CUDA Implementation (Janeiro 2025)
+
+VoxSynopsis implementa aceleração CUDA completa para **FFmpeg** e **FastWhisper**, proporcionando ganhos significativos de performance em GPUs compatíveis.
+
+#### **CUDA Components**
+- **FFmpeg Hardware Acceleration**: Decodificação e processamento de vídeo/áudio acelerados
+- **FastWhisper GPU Processing**: Transcrição acelerada por GPU
+- **Automatic Detection**: Detecção automática de capacidades CUDA
+- **Graceful Fallback**: Fallback automático para CPU quando necessário
+
+#### **Supported Hardware**
+- **GTX 10xx Series**: Suporte básico com `int8` compute type
+- **RTX 20xx/30xx/40xx**: Suporte completo com `float16` e `int8_float16`
+- **Professional Cards**: Suporte total para todas as funcionalidades
+
+#### **FFmpeg CUDA Acceleration**
+- **Video Decoding**: `h264_cuvid`, `hevc_cuvid`, `av1_cuvid`
+- **Audio Extraction**: Aceleração na extração de áudio de MP4
+- **Chunk Processing**: Criação de chunks acelerada por GPU
+- **Silence Detection**: Detecção de silêncio otimizada
+
+#### **Performance Gains**
+- **Audio Extraction**: 1.1x speedup típico
+- **Audio Processing**: 1.3x speedup em operações de tempo
+- **FastWhisper**: 2-5x speedup dependendo do modelo e hardware
+- **Memory Efficiency**: Redução de uso de CPU durante processamento intensivo
+
+#### **Auto-Configuration**
+```python
+# Configuração automática baseada no hardware
+{
+    "device": "cuda",                    # Detectado automaticamente
+    "compute_type": "int8",              # Otimizado para hardware específico
+    "model_size": "base",                # Baseado na VRAM disponível
+    "enable_model_caching": true         # Cache GPU otimizado
+}
+```
+
+#### **Status Monitoring**
+```
+🔧 FastWhisper Performance Configuration:
+   💻 Hardware: 6 cores, 15.5GB RAM
+   🧵 Threading: 6 CPU threads
+   📱 Device: CUDA (NVIDIA GeForce GTX 1050 Ti) | int8
+   ⚙️  Environment: 0 CT2 variables set
+   📊 Recommendation: 'base' model optimal for your hardware
+   🚀 Ready for optimized transcription!
+```
+
+#### **Implementation Files**
+- `core/ffmpeg_cuda.py`: Engine de otimização FFmpeg CUDA
+- `core/performance.py`: Detecção de hardware e status CUDA
+- `test_cuda.py`: Validação e benchmarking CUDA
+- `docs/CUDA_Implementation_Guide.md`: Guia técnico completo
 
 ## File Structure
 

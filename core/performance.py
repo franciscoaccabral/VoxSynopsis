@@ -234,12 +234,45 @@ def print_optimization_status() -> None:
     """Print current optimization status and recommendations."""
     hw_info = get_hardware_info()
     thread_config = get_optimal_threading_config()
+    
+    # Check current device configuration
+    try:
+        from .config import ConfigManager
+        config_manager = ConfigManager()
+        current_config = config_manager.get_settings()
+        device = current_config.get("device", "cpu")
+        compute_type = current_config.get("compute_type", "int8")
+        
+        # Check if CUDA is available
+        cuda_available = False
+        try:
+            import torch
+            cuda_available = torch.cuda.is_available()
+        except ImportError:
+            pass
+            
+        device_info = f"📱 Device: {device.upper()}"
+        if device == "cuda":
+            if cuda_available:
+                try:
+                    import torch
+                    gpu_name = torch.cuda.get_device_name(0)
+                    device_info += f" ({gpu_name})"
+                except:
+                    device_info += " (GPU detected)"
+            else:
+                device_info += " (⚠️ Not available - falling back to CPU)"
+        device_info += f" | {compute_type}"
+        
+    except Exception:
+        device_info = "📱 Device: CPU | int8"
 
     print("\n🔧 FastWhisper Performance Configuration:")
     print(
         f"   💻 Hardware: {hw_info['physical_cores']} cores, {hw_info['memory_gb']}GB RAM"
     )
     print(f"   🧵 Threading: {thread_config['cpu_threads']} CPU threads")
+    print(f"   {device_info}")
     print(
         f"   ⚙️  Environment: {len([k for k in os.environ if k.startswith('CT2_')])} CT2 variables set"
     )

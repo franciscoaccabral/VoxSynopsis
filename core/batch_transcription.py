@@ -179,10 +179,13 @@ class BatchTranscriptionThread(QThread):
             transcription_text = " ".join([segment.text for segment in segments_list])
             
             # Anti-loop detection and recovery
-            transcription_text = self._apply_anti_loop_recovery(
-                transcription_text, file_path, 
-                info.duration if info else None, model
-            )
+            if model is not None:
+                transcription_text = self._apply_anti_loop_recovery(
+                    transcription_text, file_path, 
+                    info.duration if info else None, model
+                )
+            else:
+                logger.warning(f"Model is None, skipping anti-loop recovery for {file_path}")
             
             # Salva transcrição individual com nome baseado no arquivo original
             individual_file = self._save_individual_transcription(file_path, transcription_text)
@@ -301,9 +304,12 @@ class BatchTranscriptionThread(QThread):
                 transcription_text = " ".join([segment.text for segment in segments_list])
                 
                 # Anti-loop detection and recovery  
-                transcription_text = self._apply_anti_loop_recovery(
-                    transcription_text, file_path, None, model
-                )
+                if model is not None:
+                    transcription_text = self._apply_anti_loop_recovery(
+                        transcription_text, file_path, None, model
+                    )
+                else:
+                    logger.warning(f"Model is None, skipping anti-loop recovery for {file_path}")
                 
                 # Salva transcrição individual com nome baseado no arquivo original
                 individual_file = self._save_individual_transcription(file_path, transcription_text)
@@ -652,10 +658,18 @@ class BatchTranscriptionThread(QThread):
             return transcription_text
         
         # Initialize recovery manager with transcription function
-        if self.recovery_manager is None:
-            self.recovery_manager = CoreRecoveryManager(
-                lambda path, settings: self._transcribe_with_model(model, path, settings)
-            )
+        # Always recreate recovery manager to ensure fresh model context
+        if model is None:
+            logger.error("Model is None, cannot initialize recovery manager")
+            return transcription_text
+        
+        def transcribe_function(path, settings):
+            # Double-check model availability at execution time
+            if model is None:
+                raise ValueError("Model is not available for transcription")
+            return self._transcribe_with_model(model, path, settings)
+        
+        self.recovery_manager = CoreRecoveryManager(transcribe_function)
         
         # Detect potential loops
         detection_result = self.loop_detector.detect(transcription_text, audio_duration)
@@ -743,9 +757,14 @@ class BatchTranscriptionThread(QThread):
         Transcribe audio using the provided model and settings for recovery.
         """
         try:
+            if model is None:
+                raise ValueError("Model is None in _transcribe_with_model")
+            
+            logger.info(f"Transcribing {os.path.basename(audio_path)} with model {type(model).__name__}")
             segments, _ = model.transcribe(audio_path, **settings)
             return " ".join([segment.text for segment in segments])
         except Exception as e:
+            logger.error(f"Transcription failed for {audio_path}: {str(e)}")
             raise Exception(f"Transcription failed: {str(e)}")
 
     def stop(self):

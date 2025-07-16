@@ -2,6 +2,7 @@
 
 import concurrent.futures
 import glob
+import logging
 import os
 import re
 import subprocess
@@ -18,6 +19,8 @@ from .config import MAX_WORKERS
 from .batch_transcription import BatchTranscriptionThread
 from .loop_detector import LightweightLoopDetector, QuickQualityValidator
 from .recovery_manager import CoreRecoveryManager
+
+logger = logging.getLogger(__name__)
 
 
 class TranscriptionThread(QThread):
@@ -94,16 +97,9 @@ class TranscriptionThread(QThread):
         chunk_files = []
 
         try:
-            probe_command = [
-                "ffprobe",
-                "-v",
-                "error",
-                "-show_entries",
-                "format=duration",
-                "-of",
-                "default=noprint_wrappers=1:nokey=1",
-                filepath,
-            ]
+            # Use CUDA-optimized FFprobe command
+            from .ffmpeg_cuda import ffmpeg_cuda_optimizer
+            probe_command = ffmpeg_cuda_optimizer.optimize_audio_probe_cmd(filepath)
             duration_str = subprocess.check_output(probe_command, text=True).strip()
             total_duration = float(duration_str)
         except (subprocess.CalledProcessError, FileNotFoundError, ValueError) as e:
@@ -134,26 +130,12 @@ class TranscriptionThread(QThread):
                 break
 
             chunk_filepath = f"{chunk_prefix}{i:03d}.wav"
-            command = [
-                "ffmpeg",
-                "-threads",
-                "0",
-                "-i",
-                filepath,
-                "-ss",
-                str(start_time),
-                "-t",
-                str(current_chunk_duration),
-                "-vn",
-                "-acodec",
-                "pcm_s16le",
-                "-ar",
-                "16000",
-                "-ac",
-                "1",
-                chunk_filepath,
-                "-y",  # -y to overwrite
-            ]
+            # Use CUDA-optimized FFmpeg command for chunking
+            from .ffmpeg_cuda import ffmpeg_cuda_optimizer
+            command = ffmpeg_cuda_optimizer.optimize_audio_chunking_cmd(
+                filepath, chunk_filepath, start_time, current_chunk_duration, 
+                sample_rate=16000, channels=1
+            )
             try:
                 subprocess.run(command, check=True, capture_output=True, text=True)
                 chunk_files.append(chunk_filepath)
@@ -192,56 +174,74 @@ class TranscriptionThread(QThread):
         chunk_prefix = os.path.join(output_dir, f"{base_name}_silence_chunk_")
         chunk_files = []
 
-        # 1. Detectar silêncios e gravar timestamps
+        # Get chunking configuration
+        max_chunk_duration = self.whisper_settings.get("max_chunk_duration_seconds", 180)
+        enable_adaptive = self.whisper_settings.get("enable_adaptive_sensitivity", True)
+        
+        # 1. Detectar silêncios com tentativas adaptativas
         self.update_status.emit(
             {
                 "text": (
                     f"Detectando silêncios em {os.path.basename(filepath)} "
-                    "com FFmpeg..."
+                    "com FFmpeg adaptativo..."
                 )
             }
         )
-        silence_cmd = [
-            "ffmpeg",
-            "-hwaccel",
-            "auto",
-            "-threads",
-            "0",
-            "-i",
-            filepath,
-            "-af",
-            "silencedetect=noise=-35dB:d=0.7",
-            "-f",
-            "null",
-            "-",
-        ]
-        try:
-            # A saída do silencedetect vai para o stderr
-            result = subprocess.run(
-                silence_cmd, capture_output=True, text=True, check=True
-            )
-            ffmpeg_output = result.stderr
-        except subprocess.CalledProcessError as e:
-            ffmpeg_output = e.stderr
-            if "No such file or directory" in ffmpeg_output:
-                self.update_status.emit(
-                    {"text": f"Erro: Arquivo não encontrado - {filepath}"}
-                )
-                return []
-        except FileNotFoundError:
-            self.update_status.emit({"text": "Erro: FFmpeg não encontrado."})
-            return []
+        
+        # Adaptive silence detection parameters
+        if enable_adaptive:
+            silence_thresholds = self.whisper_settings.get("adaptive_silence_thresholds", [-40, -35, -30])
+            silence_durations = self.whisper_settings.get("adaptive_silence_durations", [0.5, 0.7, 1.0])
+        else:
+            silence_thresholds = [self.whisper_settings.get("silence_threshold_dbfs", -40)]
+            silence_durations = [self.whisper_settings.get("min_silence_duration_ms", 500) / 1000.0]
 
-        # 2. Analisar os timestamps de silêncio
-        silence_starts = [
-            float(t) for t in re.findall(r"silence_start: (\d+\.?\d*)", ffmpeg_output)
-        ]
+        silence_starts = []
+        
+        # Try multiple sensitivity levels
+        for threshold, duration in zip(silence_thresholds, silence_durations):
+            # Use CUDA-optimized FFmpeg command for silence detection
+            from .ffmpeg_cuda import ffmpeg_cuda_optimizer
+            silence_cmd = ffmpeg_cuda_optimizer.optimize_silence_detection_cmd(
+                filepath, threshold_db=threshold, min_duration=duration
+            )
+            try:
+                # A saída do silencedetect vai para o stderr
+                result = subprocess.run(
+                    silence_cmd, capture_output=True, text=True, check=True
+                )
+                ffmpeg_output = result.stderr
+            except subprocess.CalledProcessError as e:
+                ffmpeg_output = e.stderr
+                if "No such file or directory" in ffmpeg_output:
+                    self.update_status.emit(
+                        {"text": f"Erro: Arquivo não encontrado - {filepath}"}
+                    )
+                    return []
+            except FileNotFoundError:
+                self.update_status.emit({"text": "Erro: FFmpeg não encontrado."})
+                return []
+
+            # 2. Analisar os timestamps de silêncio
+            current_silence_starts = [
+                float(t) for t in re.findall(r"silence_start: (\d+\.?\d*)", ffmpeg_output)
+            ]
+            
+            # If we found silences, use them and break the loop
+            if current_silence_starts:
+                silence_starts = current_silence_starts
+                logger.info(f"Detectado {len(silence_starts)} silêncios com threshold {threshold}dB")
+                break
+            else:
+                logger.info(f"Nenhum silêncio detectado com threshold {threshold}dB")
+        
+        # If no silences found with any threshold, fallback to time-based chunking
         if not silence_starts:
             self.update_status.emit(
                 {
                     "text": (
-                        f"Nenhum silêncio detectado em {os.path.basename(filepath)}. "
-                        "Usando divisão por tempo."
+                        f"Nenhum silêncio detectado em {os.path.basename(filepath)} "
+                        "com nenhuma sensibilidade. Usando divisão por tempo."
                     )
                 }
             )
@@ -276,31 +276,54 @@ class TranscriptionThread(QThread):
         current_pos = 0.0
         while current_pos < total_duration:
             next_target = current_pos + target_chunk_duration
+            max_allowed = current_pos + max_chunk_duration
+            
             if next_target >= total_duration:
                 cut_points.append(total_duration)
                 break
 
-            # Encontra o primeiro silêncio após o nosso alvo de 60s
+            # Encontra o primeiro silêncio após o nosso alvo de target_chunk_duration
             best_cut = -1.0
             for start_time in silence_starts:
                 if start_time > next_target:
-                    best_cut = start_time
-                    break
+                    # Check if this cut point would exceed maximum chunk duration
+                    if start_time <= max_allowed:
+                        best_cut = start_time
+                        break
+                    else:
+                        # This silence is too far, use the max allowed duration
+                        best_cut = max_allowed
+                        break
 
             # Se encontrou um ponto de corte, usa. Senão, corta no alvo.
-            cut_point = best_cut if best_cut != -1.0 else next_target
+            # Mas nunca excede o max_chunk_duration
+            if best_cut != -1.0:
+                cut_point = best_cut
+            else:
+                # No silence found, use target but respect max duration
+                cut_point = min(next_target, max_allowed)
+            
             cut_points.append(cut_point)
             current_pos = cut_point
 
         # 4. Criar os chunks com base nos pontos de corte
         last_start = 0.0
+        chunk_durations = []
         for i, end_time in enumerate(cut_points):
+            chunk_duration = end_time - last_start
+            chunk_durations.append(chunk_duration)
+            
             chunk_filepath = f"{chunk_prefix}{i:03d}.wav"
+            
+            # Validate chunk duration
+            if chunk_duration > max_chunk_duration:
+                logger.warning(f"Chunk {i+1} excede duração máxima: {chunk_duration:.2f}s > {max_chunk_duration}s")
+            
             self.update_status.emit(
                 {
                     "text": (
                         f"Criando chunk {i + 1}/{len(cut_points)} "
-                        f"(duração: {end_time - last_start:.2f}s)..."
+                        f"(duração: {chunk_duration:.2f}s)..."
                     )
                 }
             )
@@ -334,7 +357,95 @@ class TranscriptionThread(QThread):
                 # Não retorna aqui, tenta criar os outros chunks
             last_start = end_time
 
-        return chunk_files
+        # Log chunk statistics
+        if chunk_durations:
+            avg_duration = sum(chunk_durations) / len(chunk_durations)
+            max_duration = max(chunk_durations)
+            min_duration = min(chunk_durations)
+            oversized_chunks = sum(1 for d in chunk_durations if d > max_chunk_duration)
+            
+            logger.info(f"Chunk statistics for {os.path.basename(filepath)}:")
+            logger.info(f"  Total chunks: {len(chunk_durations)}")
+            logger.info(f"  Average duration: {avg_duration:.2f}s")
+            logger.info(f"  Max duration: {max_duration:.2f}s")
+            logger.info(f"  Min duration: {min_duration:.2f}s")
+            logger.info(f"  Oversized chunks (>{max_chunk_duration}s): {oversized_chunks}")
+            
+            if oversized_chunks > 0:
+                logger.warning(f"⚠️ {oversized_chunks} chunks excedem duração máxima de {max_chunk_duration}s")
+
+        # Apply fallback splitting for oversized chunks
+        final_chunk_files = []
+        for chunk_file in chunk_files:
+            chunk_duration = self._get_audio_duration_ffmpeg(chunk_file)
+            if chunk_duration > max_chunk_duration:
+                logger.info(f"Aplicando divisão de fallback para {os.path.basename(chunk_file)}")
+                subchunks = self._split_oversized_chunk(chunk_file, max_chunk_duration)
+                final_chunk_files.extend(subchunks)
+            else:
+                final_chunk_files.append(chunk_file)
+
+        return final_chunk_files
+
+    def _split_oversized_chunk(self, chunk_filepath: str, max_duration: float) -> list[str]:
+        """
+        Split a chunk that exceeds the maximum duration into smaller pieces.
+        Uses time-based splitting as a fallback when silence detection fails.
+        """
+        if not os.path.exists(chunk_filepath):
+            return [chunk_filepath]
+            
+        # Get chunk duration
+        chunk_duration = self._get_audio_duration_ffmpeg(chunk_filepath)
+        if chunk_duration <= max_duration:
+            return [chunk_filepath]
+        
+        logger.info(f"Dividindo chunk oversized {os.path.basename(chunk_filepath)} ({chunk_duration:.2f}s)")
+        
+        # Calculate how many sub-chunks we need
+        num_subchunks = int(chunk_duration / max_duration) + 1
+        subchunk_duration = chunk_duration / num_subchunks
+        
+        base_name = os.path.splitext(chunk_filepath)[0]
+        subchunk_files = []
+        
+        for i in range(num_subchunks):
+            start_time = i * subchunk_duration
+            end_time = min((i + 1) * subchunk_duration, chunk_duration)
+            
+            subchunk_filepath = f"{base_name}_sub{i:02d}.wav"
+            
+            cut_cmd = [
+                "ffmpeg",
+                "-hwaccel", "auto",
+                "-threads", "0",
+                "-i", chunk_filepath,
+                "-ss", str(start_time),
+                "-to", str(end_time),
+                "-vn",
+                "-acodec", "pcm_s16le",
+                "-ar", "16000",
+                "-ac", "1",
+                subchunk_filepath,
+                "-y",
+            ]
+            
+            try:
+                subprocess.run(cut_cmd, check=True, capture_output=True, text=True)
+                subchunk_files.append(subchunk_filepath)
+                logger.info(f"  Subchunk {i+1}/{num_subchunks}: {end_time - start_time:.2f}s")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Erro ao criar subchunk {i+1}: {e.stderr}")
+                # If subchunk creation fails, return original chunk
+                return [chunk_filepath]
+        
+        # Remove the original oversized chunk
+        try:
+            os.remove(chunk_filepath)
+        except OSError as e:
+            logger.warning(f"Não foi possível remover chunk original: {e}")
+        
+        return subchunk_files
 
     def _get_audio_duration_ffmpeg(self, filepath: str) -> float:
         """Usa ffprobe para obter a duração de um arquivo de áudio com cache."""
@@ -386,15 +497,12 @@ class TranscriptionThread(QThread):
                 )
                 if not os.path.exists(extracted_wav_path):
                     try:
-                        extract_cmd = [
-                            "ffmpeg",
-                            "-hwaccel", "auto",
-                            "-threads", "0",
-                            "-i", media_path,
-                            "-vn", "-acodec", "pcm_s16le",
-                            "-ar", "16000", "-ac", "1",
-                            extracted_wav_path, "-y",
-                        ]
+                        # Use CUDA-optimized FFmpeg command
+                        from .ffmpeg_cuda import ffmpeg_cuda_optimizer
+                        extract_cmd = ffmpeg_cuda_optimizer.optimize_audio_extraction_cmd(
+                            media_path, extracted_wav_path, sample_rate=16000, channels=1
+                        )
+                        
                         subprocess.run(
                             extract_cmd, check=True, capture_output=True, text=True
                         )
@@ -448,11 +556,12 @@ class TranscriptionThread(QThread):
 
             if not os.path.exists(accelerated_chunk_path):
                 try:
-                    accel_cmd = [
-                        "ffmpeg", "-threads", "0", "-i", chunk_path,
-                        "-filter:a", f"atempo={acceleration_factor}",
-                        accelerated_chunk_path, "-y"
-                    ]
+                    # Use CUDA-optimized FFmpeg command for audio tempo
+                    from .ffmpeg_cuda import ffmpeg_cuda_optimizer
+                    accel_cmd = ffmpeg_cuda_optimizer.optimize_audio_tempo_cmd(
+                        chunk_path, accelerated_chunk_path, acceleration_factor
+                    )
+                    
                     subprocess.run(
                         accel_cmd, check=True, capture_output=True, text=True
                     )
@@ -741,10 +850,13 @@ class TranscriptionThread(QThread):
                 file_duration = self._get_audio_duration_ffmpeg(filepath)
                 
                 # Anti-loop detection and recovery
-                transcription_text = self._apply_anti_loop_recovery(
-                    transcription_text, filepath, file_duration, 
-                    transcribe_params, model
-                )
+                if model is not None:
+                    transcription_text = self._apply_anti_loop_recovery(
+                        transcription_text, filepath, file_duration, 
+                        transcribe_params, model
+                    )
+                else:
+                    logger.warning(f"Model is None, skipping anti-loop recovery for {filepath}")
                 real_time_factor = file_duration / last_file_time if last_file_time > 0 else 0
                 
                 transcription_with_metrics = (
@@ -905,10 +1017,18 @@ class TranscriptionThread(QThread):
             return transcription_text
         
         # Initialize recovery manager with transcription function
-        if self.recovery_manager is None:
-            self.recovery_manager = CoreRecoveryManager(
-                lambda path, settings: self._transcribe_with_model(model, path, settings)
-            )
+        # Always recreate recovery manager to ensure fresh model context
+        if model is None:
+            logger.error("Model is None, cannot initialize recovery manager")
+            return transcription_text
+        
+        def transcribe_function(path, settings):
+            # Double-check model availability at execution time
+            if model is None:
+                raise ValueError("Model is not available for transcription")
+            return self._transcribe_with_model(model, path, settings)
+        
+        self.recovery_manager = CoreRecoveryManager(transcribe_function)
         
         # Detect potential loops
         detection_result = self.loop_detector.detect(transcription_text, audio_duration)
@@ -990,9 +1110,14 @@ class TranscriptionThread(QThread):
         Used by recovery manager for re-transcription attempts.
         """
         try:
+            if model is None:
+                raise ValueError("Model is None in _transcribe_with_model")
+            
+            logger.info(f"Transcribing {os.path.basename(audio_path)} with model {type(model).__name__}")
             segments, _ = model.transcribe(audio_path, **settings)
             return "".join(segment.text for segment in segments)
         except Exception as e:
+            logger.error(f"Transcription failed for {audio_path}: {str(e)}")
             raise Exception(f"Transcription failed: {str(e)}")
     
     def get_anti_loop_statistics(self) -> dict:
