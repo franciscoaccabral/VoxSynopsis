@@ -74,7 +74,7 @@ class TranscriptionThread(QThread):
         )
         # Regular chunk duration for fallback or when smart chunking is off
         self.regular_chunk_duration_seconds = self.whisper_settings.get(
-            "chunk_duration_seconds", 60
+            "chunk_duration_seconds", 30
         )
     
     def _check_batch_support(self) -> bool:

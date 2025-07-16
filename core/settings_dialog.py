@@ -197,7 +197,7 @@ class FastWhisperSettingsDialog(QDialog):
         self.chunk_duration_spinbox.setRange(10, 300)  # Min 10s, Max 300s (5 min)
         self.chunk_duration_spinbox.setSingleStep(10)
         self.chunk_duration_spinbox.setValue(
-            self.settings.get("chunk_duration_seconds", 60)
+            self.settings.get("chunk_duration_seconds", 30)
         )
         self.form_layout.addRow(
             "Duração do Trecho (segundos):", self.chunk_duration_spinbox

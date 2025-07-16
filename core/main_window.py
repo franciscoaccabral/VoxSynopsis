@@ -258,7 +258,7 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
             channels_to_use,
             self.output_path,
             apply_processing,
-            self.whisper_settings.get("chunk_duration_seconds", 60),
+            self.whisper_settings.get("chunk_duration_seconds", 30),
         )
         self.recording_thread.status_update.connect(self.update_status)
         self.recording_thread.recording_error.connect(self.show_error_message)

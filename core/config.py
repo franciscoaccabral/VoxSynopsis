@@ -42,7 +42,7 @@ class ConfigManager:
                 4, physical_cores
             ),  # Otimizado: usa cores físicos
             "cpu_threads": physical_cores,  # Otimizado: usa todos os cores físicos
-            "chunk_duration_seconds": 60,
+            "chunk_duration_seconds": 30,
             # Configurações de batch processing otimizadas
             "use_batch_processing": True,
             "batch_threshold": 2,  # Otimizado: 3 → 2 (batch mais agressivo)
