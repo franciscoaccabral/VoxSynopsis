@@ -142,7 +142,7 @@ class BatchTranscriptionThread(QThread):
                 model=model
                 # Note: All optional parameters removed - current faster-whisper version only accepts model
             )
-            logger.info(f"Created batched pipeline with batch_size={pipeline.batch_size}")
+            logger.info("Created batched pipeline successfully")
             return pipeline
         except Exception as e:
             logger.error(f"Failed to create batched pipeline: {e}")
