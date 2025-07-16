@@ -139,10 +139,8 @@ class BatchTranscriptionThread(QThread):
         try:
             # Check if BatchedInferencePipeline supports the expected parameters
             pipeline = BatchedInferencePipeline(
-                model=model,
-                # Note: use_cuda parameter removed - not supported in current faster-whisper version
-                chunk_length=30,  # 30-second chunks as recommended
-                batch_size=self._determine_optimal_batch_size()
+                model=model
+                # Note: All optional parameters removed - current faster-whisper version only accepts model
             )
             logger.info(f"Created batched pipeline with batch_size={pipeline.batch_size}")
             return pipeline
