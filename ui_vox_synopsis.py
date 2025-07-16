@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -81,19 +82,58 @@ class Ui_MainWindow(object):
 
         # --- Grupo de Monitor de Recursos ---
         resource_group = QGroupBox("Monitor de Recursos")
-        resource_layout = QHBoxLayout()
+        resource_layout = QGridLayout()
+        
+        # Linha 1: Barras de progresso principais
         self.cpu_bar = QProgressBar()
         self.cpu_bar.setRange(0, 100)
         self.cpu_bar.setFormat("CPU %p%")
+        self.gpu_bar = QProgressBar()
+        self.gpu_bar.setRange(0, 100)
+        self.gpu_bar.setFormat("GPU %p%")
+        
+        resource_layout.addWidget(QLabel("CPU:"), 0, 0)
+        resource_layout.addWidget(self.cpu_bar, 0, 1)
+        self.gpu_label = QLabel("GPU:")
+        resource_layout.addWidget(self.gpu_label, 0, 2)
+        resource_layout.addWidget(self.gpu_bar, 0, 3)
+        
+        # Linha 2: Memória
         self.mem_bar = QProgressBar()
         self.mem_bar.setRange(0, 100)
-        self.mem_bar.setFormat("Memória %p%")
-        resource_layout.addWidget(QLabel("CPU:"))
-        resource_layout.addWidget(self.cpu_bar)
-        resource_layout.addWidget(QLabel("Memória:"))
-        resource_layout.addWidget(self.mem_bar)
-        self.threads_label = QLabel("Threads: N/A")
-        resource_layout.addWidget(self.threads_label)
+        self.mem_bar.setFormat("RAM %p%")
+        self.vram_bar = QProgressBar()
+        self.vram_bar.setRange(0, 100)
+        self.vram_bar.setFormat("VRAM %p%")
+        
+        resource_layout.addWidget(QLabel("RAM:"), 1, 0)
+        resource_layout.addWidget(self.mem_bar, 1, 1)
+        self.vram_label = QLabel("VRAM:")
+        resource_layout.addWidget(self.vram_label, 1, 2)
+        resource_layout.addWidget(self.vram_bar, 1, 3)
+        
+        # Linha 3: Status e informações
+        self.device_status_label = QLabel("🖥️ Dispositivo: Detectando...")
+        self.device_status_label.setStyleSheet("font-weight: bold; padding: 4px;")
+        self.threads_label = QLabel("🧵 Threads: N/A")
+        self.acceleration_status_label = QLabel("⚡ Aceleração: N/A")
+        
+        status_layout = QHBoxLayout()
+        status_layout.addWidget(self.device_status_label)
+        status_layout.addWidget(self.threads_label)
+        status_layout.addWidget(self.acceleration_status_label)
+        status_layout.addStretch()
+        
+        status_widget = QWidget()
+        status_widget.setLayout(status_layout)
+        resource_layout.addWidget(status_widget, 2, 0, 1, 4)
+        
+        # Inicialmente ocultar elementos GPU
+        self.gpu_label.hide()
+        self.gpu_bar.hide()
+        self.vram_label.hide()
+        self.vram_bar.hide()
+        
         resource_group.setLayout(resource_layout)
         self.main_layout.addWidget(resource_group)
 

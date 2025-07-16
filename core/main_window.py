@@ -18,6 +18,8 @@ from .recording import RecordingThread, DeviceInfo
 from .transcription import TranscriptionThread
 from .settings_dialog import FastWhisperSettingsDialog
 from .completion_popup import CompletionPopup
+from .gpu_monitor import gpu_monitor
+from .ffmpeg_cuda import ffmpeg_cuda_optimizer
 
 
 class AudioRecorderApp(QMainWindow, Ui_MainWindow):
@@ -49,6 +51,9 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
         self.resource_timer.setInterval(1000)
         self.resource_timer.timeout.connect(self.update_resource_usage)
         self.resource_timer.start()
+        
+        # Inicializa interface CUDA
+        self.initialize_cuda_interface()
 
     def center_window(self):
         # Obtém a tela onde o cursor do mouse está
@@ -303,8 +308,94 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
         self.stop_recording()
         QMessageBox.critical(self, "Erro de Gravação", message)
 
+    def initialize_cuda_interface(self):
+        """Initialize CUDA interface components."""
+        # Update device status
+        self.update_device_status()
+        
+        # Show/hide GPU elements based on CUDA availability
+        cuda_available = gpu_monitor.is_cuda_available()
+        gpu_monitoring = gpu_monitor.is_gpu_monitoring_available()
+        
+        if cuda_available and gpu_monitoring:
+            self.gpu_label.show()
+            self.gpu_bar.show()
+            self.vram_label.show()
+            self.vram_bar.show()
+        else:
+            self.gpu_label.hide()
+            self.gpu_bar.hide()
+            self.vram_label.hide()
+            self.vram_bar.hide()
+        
+        # Set tooltips
+        self.setup_tooltips()
+    
+    def setup_tooltips(self):
+        """Setup informative tooltips for monitoring widgets."""
+        device_status = gpu_monitor.get_device_status()
+        
+        if device_status['cuda_available']:
+            cuda_info = device_status.get('cuda_info', {})
+            gpu_name = cuda_info.get('device_name', 'GPU desconhecida')
+            self.device_status_label.setToolTip(
+                f"Dispositivo CUDA ativo: {gpu_name}\n"
+                f"Capacidade CUDA: {cuda_info.get('device_capability', 'N/A')}\n"
+                f"Dispositivos: {cuda_info.get('device_count', 0)}"
+            )
+            
+            if device_status['gpu_monitoring_available']:
+                primary_gpu = device_status.get('primary_gpu')
+                if primary_gpu:
+                    self.gpu_bar.setToolTip(
+                        f"Utilização da GPU: {primary_gpu.name}\n"
+                        f"Temperatura: {primary_gpu.temperature}°C"
+                    )
+                    self.vram_bar.setToolTip(
+                        f"Memória VRAM: {primary_gpu.name}\n"
+                        f"Total: {primary_gpu.total_memory}MB\n"
+                        f"Livre: {primary_gpu.free_memory}MB"
+                    )
+        else:
+            self.device_status_label.setToolTip("CUDA não disponível - usando CPU")
+    
+    def update_device_status(self):
+        """Update device status display."""
+        device = self.whisper_settings.get("device", "cpu")
+        compute_type = self.whisper_settings.get("compute_type", "int8")
+        
+        if device == "cuda" and gpu_monitor.is_cuda_available():
+            cuda_info = gpu_monitor.get_cuda_device_info()
+            if cuda_info:
+                gpu_name = cuda_info.get('device_name', 'GPU')
+                # Extract short name (e.g., "GTX 1050 Ti" from "NVIDIA GeForce GTX 1050 Ti")
+                short_name = gpu_name.replace("NVIDIA GeForce ", "").replace("NVIDIA ", "")
+                self.device_status_label.setText(f"🚀 CUDA ({short_name}) | {compute_type}")
+                self.device_status_label.setStyleSheet("font-weight: bold; color: #27ae60; padding: 4px;")
+            else:
+                self.device_status_label.setText(f"🚀 CUDA | {compute_type}")
+                self.device_status_label.setStyleSheet("font-weight: bold; color: #27ae60; padding: 4px;")
+        elif device == "cuda":
+            # CUDA configured but not available
+            self.device_status_label.setText(f"⚠️ CUDA (Indisponível) | {compute_type}")
+            self.device_status_label.setStyleSheet("font-weight: bold; color: #e67e22; padding: 4px;")
+        else:
+            # CPU mode
+            self.device_status_label.setText(f"🖥️ CPU | {compute_type}")
+            self.device_status_label.setStyleSheet("font-weight: bold; color: #3498db; padding: 4px;")
+        
+        # Update acceleration status
+        ffmpeg_status = "Ativo" if ffmpeg_cuda_optimizer.cuda_enabled else "CPU"
+        if device == "cuda" and gpu_monitor.is_cuda_available():
+            self.acceleration_status_label.setText(f"⚡ FFmpeg+Whisper: {ffmpeg_status}")
+            self.acceleration_status_label.setStyleSheet("color: #27ae60;")
+        else:
+            self.acceleration_status_label.setText(f"⚡ CPU Mode")
+            self.acceleration_status_label.setStyleSheet("color: #7f8c8d;")
+
     def update_resource_usage(self):
         try:
+            # CPU and RAM monitoring
             cpu_percent = self.process.cpu_percent(interval=None)
             mem_info = self.process.memory_info()
             mem_percent = self.process.memory_percent()
@@ -312,9 +403,38 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
             self.mem_bar.setValue(int(mem_percent))
             mem_mb = mem_info.rss / (1024 * 1024)
             self.mem_bar.setFormat(f"{mem_mb:.1f} MB (%p%)")
+            
+            # GPU monitoring (if available)
+            if gpu_monitor.is_gpu_monitoring_available():
+                gpu_util = gpu_monitor.get_utilization_percentage(0)
+                vram_percent = gpu_monitor.get_memory_usage_percentage(0)
+                vram_info = gpu_monitor.format_memory_info(0)
+                
+                self.gpu_bar.setValue(gpu_util)
+                self.vram_bar.setValue(vram_percent)
+                self.vram_bar.setFormat(f"{vram_info} (%p%)")
+                
+                # Color coding based on usage
+                if gpu_util > 80:
+                    self.gpu_bar.setStyleSheet("QProgressBar::chunk { background-color: #e74c3c; }")
+                elif gpu_util > 50:
+                    self.gpu_bar.setStyleSheet("QProgressBar::chunk { background-color: #f39c12; }")
+                else:
+                    self.gpu_bar.setStyleSheet("QProgressBar::chunk { background-color: #27ae60; }")
+                
+                if vram_percent > 80:
+                    self.vram_bar.setStyleSheet("QProgressBar::chunk { background-color: #e74c3c; }")
+                elif vram_percent > 60:
+                    self.vram_bar.setStyleSheet("QProgressBar::chunk { background-color: #f39c12; }")
+                else:
+                    self.vram_bar.setStyleSheet("QProgressBar::chunk { background-color: #27ae60; }")
+            
         except psutil.NoSuchProcess:
             self.cpu_bar.setValue(0)
             self.mem_bar.setValue(0)
+            if gpu_monitor.is_gpu_monitoring_available():
+                self.gpu_bar.setValue(0)
+                self.vram_bar.setValue(0)
         except Exception as e:
             print(f"Erro ao monitorar recursos: {e}")
             self.cpu_bar.setValue(0)
@@ -326,6 +446,11 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
             self.whisper_settings = settings_dialog.get_settings()
             self.config_manager.settings = self.whisper_settings
             self.config_manager.save_settings()
+            
+            # Update CUDA interface after settings change
+            self.update_device_status()
+            self.initialize_cuda_interface()
+            
             QMessageBox.information(
                 self,
                 "Configurações Salvas",
