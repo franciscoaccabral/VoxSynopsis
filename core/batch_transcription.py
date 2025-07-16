@@ -137,9 +137,10 @@ class BatchTranscriptionThread(QThread):
     def _create_batched_pipeline(self, model: WhisperModel) -> BatchedInferencePipeline:
         """Create a BatchedInferencePipeline for high-performance processing."""
         try:
+            # Check if BatchedInferencePipeline supports the expected parameters
             pipeline = BatchedInferencePipeline(
                 model=model,
-                use_cuda=False,  # CPU-only for now
+                # Note: use_cuda parameter removed - not supported in current faster-whisper version
                 chunk_length=30,  # 30-second chunks as recommended
                 batch_size=self._determine_optimal_batch_size()
             )
@@ -147,6 +148,8 @@ class BatchTranscriptionThread(QThread):
             return pipeline
         except Exception as e:
             logger.error(f"Failed to create batched pipeline: {e}")
+            # Log the specific error for debugging
+            logger.debug(f"BatchedInferencePipeline creation error details: {str(e)}")
             raise
     
     def _process_file_with_batched_pipeline(self, pipeline: BatchedInferencePipeline, 

@@ -1,0 +1,511 @@
+================================================================================
+🎯 RELATÓRIO DETALHADO DE TRANSCRIÇÃO - VOXSYNOPSIS
+================================================================================
+📅 Gerado em: 2025-07-16 10:44:39
+🔧 Sistema de Relatórios Avançado v2.0
+================================================================================
+
+🖥️  INFORMAÇÕES DO SISTEMA:
+   • OS: Linux 6.6.87.2-microsoft-standard-WSL2
+   • Arquitetura: x86_64
+   • Hostname: DellG3
+   • Python: 3.12.3
+
+💻 HARDWARE:
+   • CPU: x86_64
+   • Cores: 6 físicos / 12 lógicos
+   • Frequência: 2208MHz / 0MHz
+   • RAM: 15.55GB total, 12.22GB disponível (21.4% uso)
+   • Disco: 940.3GB livres de 1006.9GB (1.5% uso)
+   • GPU: NVIDIA GeForce GTX 1050 Ti
+   • VRAM: 4.0GB total
+   • CUDA: 12.6
+
+⏰ ANÁLISE TEMPORAL DETALHADA:
+   📅 Sessão: batch_transcription
+   🕐 Início: 2025-07-16 13:30:22 UTC
+   ⏱️  Duração Atual: 14m 16.9s (em andamento)
+
+📊 BREAKDOWN POR FASE:
+   • initialization: 0.8s (0.0%)
+   • processing: 14m 16.1s (0.0%)
+
+⚙️  CONFIGURAÇÃO DE TRANSCRIÇÃO:
+   • Modelo FastWhisper: base
+   • Dispositivo de Processamento: cpu
+   • Tipo de Computação: int8
+   • Threads CPU: 6
+   • Tamanho do Lote: 6
+   • Processamento em Lote: Ativo
+   • Idioma: pt
+   • Temperatura: 0.0
+   • Beam Size: 1
+   • Best Of: 1
+   • Filtro VAD: Sim
+   • Condicionamento Texto Anterior: Não
+   • Patience: 1.0
+   • Aceleração de Áudio: 1.0x
+
+🌍 VARIÁVEIS DE AMBIENTE:
+   • Variáveis CT2: 4
+   • Variáveis OMP: 1
+   • Variáveis CUDA: 1
+   • CT2_INTER_THREADS: 1
+   • CT2_INTRA_THREADS: 6
+   • CT2_MAX_QUEUED_BATCHES: 0
+   • CT2_VERBOSE: 0
+
+⚡ ANÁLISE DE PERFORMANCE:
+   📊 Duração do Monitoramento: 856.5s
+   📈 Pontos de Dados Coletados: 1706
+
+💻 CPU:
+   • Uso Médio (Sistema): 34.2%
+   • Uso Pico (Sistema): 55.1%
+   • Uso Médio (Processo): 394.4%
+   • Uso Pico (Processo): 640.2%
+   • Desvio Padrão CPU: 14.2%
+
+🧠 MEMÓRIA:
+   • Uso Médio (Sistema): 24.1%
+   • Uso Pico (Sistema): 27.7%
+   • Uso Médio (Processo): 1207MB
+   • Uso Pico (Processo): 1766MB
+   • Pico de Memória: 1.7GB
+
+💾 DISCO I/O:
+   • Total Lido: 104.5MB
+   • Total Escrito: 1202.9MB
+   • Total I/O: 1307.3MB
+   • Operações: 7731
+
+🔄 PROCESSO:
+   • Threads Médias: 50.8
+   • Threads Máximas: 67
+   • Estabilidade de Threads: 2.84
+
+📊 EFICIÊNCIA:
+   • Score CPU: 1.000
+   • Score Memória: 0.216
+   • Score Geral: 0.608
+   • Categoria de Uso: Moderate
+
+📊 RESULTADOS DA TRANSCRIÇÃO:
+   • Total de Arquivos: 130
+   • Processados com Sucesso: 130
+   • Falharam: 0
+   • Taxa de Sucesso: 100.0%
+   • Tempo Total: 856.9s (14.3 min)
+   • Tempo Médio por Arquivo: 6.6s
+   • Throughput: 9.1 arquivos/min
+   • Speedup por Paralelização: 1.0x
+
+🔍 ANÁLISE E RECOMENDAÇÕES:
+   📊 Throughput adequado
+   🔴 CPU em uso intenso (>95%)
+      → Considere modelo menor ou menos threads
+   🟢 Uso eficiente de memória
+      → Pode usar modelo maior se desejar mais qualidade
+
+📝 CONTEÚDO TRANSCRITO:
+============================================================
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_000.wav ---
+e caso quiser revir, não é?  Vamos ver com o vou-decedir o que eu estou perguntando.  Beleza.  Mark, para não mostrar nos próximos sete dias?  Com que é na área de...  E a área do sete?  Tá.  Como é que funciona o configurador de distributos aí?  Ele está vindo, o que eu comentei para substituir,  que é a questão de andar parte de cálculos,  da gente uma série de rotinas aí, incluindo a texto.  mas junto com isso aí a gente centra a lensaria no conflador de tributos, aqueles campos lá  a partir de impostos, que tem ali de retenções dos produtos, as naturezas, as insensões  fiscais e inclusive os campos de cálculo da tese. Então, seja, ficaria tudo num lugar só,  facilitando aí a mão de tensão, que hoje fica tudo digamos assim meio distribuído entre  e a proteção, depende de que você tem que mudar no outro, fazer uma acesso aqui,  outro colar até achar o que você precisa.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_001.wav ---
+Então sim, o objetivo geral é esse. Ele é baseado aí, você vê do lado esquerdo, tem dois  menos principais, no menu aí, relativo às regas fiscais, que seria tudo relativo ao cálculo  do documento fiscal em cima, do documento em entrada, ali em quais impostos que a gente  ele substituir, assim como os ajustes. E também a gente tem ali a parte de regas financeiras  que trata a questão da retenção.  Como vai funcionar a retenção ali, como a atividade, vencimentos, natureza, o treinamento,  o objetivo é ver esses dois pontos.  Hoje provavelmente ainda vai vir mais a parte de regras financeira.  Aí primeiro ponto, que é o primeiro ponto de dúvida.  Você já viu uma mensagem na texto, que é a texto, vários cantos estão sendo descontinuados.  os campos que serem oes, o que ficam na tesu, seria essa documentação que eu estou te mandando  aí no chat, vocês são os campos permanecem, você vai ver que são campos ali, no que faz parte  que é importante para o fiscal, o CFOP.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_002.wav ---
+porque em cima do CFOA, a gente toma algumas decisões de filtro, por exemplo, tal não uma regra de calco,  a questão de campos do CUP, se gera CUP, se não gera, o calco vai mudar para cá, mas o processo do CUP continua mesmo.  E algumas informações ali que são mais um flacinho, pertinentes ao custo também, como, por exemplo, ele crede sem,  sem, para acreditar no curso ali dentro, o credipei, apesar que existem, vão falar  assim um movimento aí para dar que algum tempo seja feito ali, a migração disso para a  questão do configurador também, apareça um terceiro menu, seria ali regras de stock,  o regras de curso, isso está em análise e desenvolvimento lá.  Então o que é o cunograma base disso aí?  Vocês estão na 24h10, na 25h10 que é a próxima, novos clientes eu não vou ter acesso aos  campos, então eu já não vai funcionar.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_003.wav ---
+Na 25, 10, então vai ser para todos os clientes, vai desatibar tudo.  Então, agora a gente já conversou, conversou com o DCI, quanto que a gente conseguia antecipar isso,  melhor porque vocês já fiquem com mais tronquidos também com a relação na configuração disso,  e até porque, invariablemente a gente teria que configurar algo no configurador distributos,  porque reforma tributária começa a enviar informações que vem.  Então, o único local para fazer isso é o configurador de tributos.  A torta se não solta o cloninho outro cálculo que dê para fazer isso fora dele.  Beleza?  Beleza.  Como que funciona então?  Pode abrir regras fiscais, menos ele do lado para a gente.  Clica nele para abrir.  É doido.  Ah, e doido.  isso. Pessoa menúdica depois de vida em cadácias perfis, regras de cálculo do  documento fiscal e regras de ajuste de lançamento. Esses quatro que a gente deve  atrapalhar esse primeiro momento. A apuração em relatórios.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_004.wav ---
+Eles existem para tributos que não estejam, vão fazer um legado do proteus e que não  tem uma apuração específica.  E, igual a gente já tem a opração de semiação, a apuração de PI, piscofins,  é um todo isso a gente continua utilizando as sortidas de apurações ali normales.  Para esses tributos que a gente faz assim que não são controlados, por exemplo, vamos supor  que é um caso hipotético, se a gente quiser se ver o cálculo da sefem, é possível  criar um tributo sefem ali e fazer uma rega para ele calcular e que esse tributo  seja curado por essa rotina específica da configura dos tributos, assim como algum  selatório de conferência. A função dessa população basicamente para isso, para esse tributo  não tem um vínculo direto, não é uma operação direta aí.  Vamos começar lá para cadastros.  Pode abrir também.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_005.wav ---
+Não, ainda não, então a gente nos participa a escadão nos nos trabalhar, seria  Tributo.  É, regra por ensinme, regra por qual a expressação de serviço, isso é a situação  de tributar, e, dependendo da líquida e a descrituração, e qual de receita.  e as pessoas, vamos lá, o entrebuto, o tributo, ele já tem uma carga aí, a dronbo, o proteus,  com todos os tributos que já existem, e eles já vêm amarrados ali aos campos, já existem  o proteus também. Por exemplo, a gente tem um default, já tem campo ali no doco-intofistral,  e são gravados ali a informação do AdFal nos livros escais também.  Você tem uns campos ali em um documento, por exemplo, em cima de complementar, é que  o programa no acerto fiscal, já tem uns campos predeterminidos, pode para visualizar  aí, não é que o sistema entende, que ele tem que gravar isso.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_006.wav ---
+com base decidendo tributar.  Na vez que quando a gente falta marrado em D37,  tem que ir lá e ir pra válvamos no campo lá de um de falo,  FTV falo, assim, estudiante.  Nós somos todo mundo que já tem um cálculo aí legado pelo proteus,  e isso está aí com a amarração concluída.  Só esses nossos tributos que a gente poderia criar ali  para alguma necessidade estadual, normalizadação nova,  aí não teria esse dele a gente controlar por uma apoiação a parte.  Mas como isso vai estar na arrada?  Aí, vimos cadassos para frente.  Então, se uma série de informações para frente,  vai estar marcando uma ou outra até chegar na parte de perfil ali.  Depois disso, a gente tem ali parte de abel progressiva.  Sabe que a tabelha progressiva, que às vezes tem que ajustar lá no configurador?  Aí, tá. Então, para a retenção, liga em post de renda,  seria aí. Quando a gente for ver retenção,  e vai passar aí cadastro uma tabelinha progresso e  link o lado da regra de calco para depois utilizar.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_007.wav ---
+é que inclui ela no caso pode ter doido inclui você vai ver que é bem padrãozinho faixa de até  uma outra coisa que eu vou fazer depois, é que eu tenho que ajustar esses cadastros de vocês  por empresa, isso vai ver que algumas coisas estão separadas ali por fioal,  depois da justiço por empresa também vai ficar tudo certinho, que é isso que um cadáção regra na deles vai pra todo mundo, tá  vamos lá para a regra por em cima.  Essa regra é para em cima e agora que tem aquela insensão fiscal.  É parecido que esse é só.  Só que aí no caso, a gente se saeram tanto quanto mais opcional,  porque a gente tinha um cálculo que ele é criado do proteus ali.  A regra do princípio é mais obrigatória, pegamos uma série de alíquitos ali e vamos falar assim.  Resumir a quantidade de cálculos que a gente consegue estar cada strão,  não fica muito distensa ali e difícil na minha opção depois.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_008.wav ---
+pode clicar em incluir. Para a gente começar a fazer os cálculos ali, ficar mais fácil,  a gente vai começar pelo... pelo nosso fiscal de saída.  Pode pedir incluir na matriz no parque.  Fala com, olha um NCM de um produto que vocês vêm de montanha.  Vou te explicar, todos que é da bruta.  Beleza, sai em outro fiscal de peda à bruta.  Na parte de baixo, aí já começa aquela marração com o tributo que a gente viu.  Por exemplo, você vai colocar ICMS.  Pode agitar ou vou ficar.  Pode agitar, ICMS.  É o mesmo código do tributo que você lembra ali antes, não é?  Pode ir no balento.  E com base nesse tributo, a gente pode ali estar informando nessas quatro abas.  Quando eu vou utilizar cada coisa, vai você ter meio que...
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_009.wav ---
+comções específicas de dependendo um pouco do tributo.  Imagina o valor agregado se vai utilizar como foi a Ct.  No caso do SMS não tem.  Pauta, é quando eu tenho tributação em cima da quantidade, não dá base de calma.  Se eu não tenho produto por pauta, sei mais como um indústria de bebidas.  E já...  Então aí, já é mais comum olhar por pauta.  A look está me majorada e seria mais para questões de importação.  Por os tributos, propiamente indítulos, com a exceção do Sct,  mas como você ter pauta para Sct e para ir peir,  você vai utilizar a look do tributo.  Como que funciona?  Quem vai colocar o f de origem, o f de destino?  Por exemplo, toda vez que você tiver vendendo ali de minas para São Paulo,  vai ser ali, tal alíquita. Então a gente vai me equipar um plano para o sistema reglente  calculeiro.  Quero casa que por exemplo, quando eu vou em dê 5 minas para a minas.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_010.wav ---
+o CMS, 18%.  Ok, eu posso já fazer colocar lá.  E te for apetante pelo simples.  O que vai fazer aí?  E ele for ou não for?  Se eu vender para o cliente da Epicrede,  esse CMS é diferente.  Ok.  Se a me caper, que a me caper da Epicrede,  se eu vender para o que está aqui pelo simples,  esse é o CMS de 18%.  A lita, isso é sem colocar a lita padrão independente do regim do cliente.  Por quê?  Depois você vai viver mais para frente, daqueles que a gente tem perfil de cliente, onde a gente consegue e vinclece perfis.  E junto com a regra de cálculo ativaram não determinado cálculo.  Então, aí, você pensa como a inscrituração padrão.  Não é? Não é? Você não tem nem desses minas para mim, esse produto aqui.  Isso não fosse calcular, seria o quanto?  18, certo?  Você pode colocar como de noite.  E isso aí?  Você pode deixar como um do um do um do dois mil e vinte e cinco porque que tem isso?  Lembra que quando tinha virada de tributação era meio caótica no proteus porque tinha que  trocar esses dados na virada, segurar a faturamento, às vezes esqueci, eu tributava o produto errado.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_011.wav ---
+E com a vigência e você pode se antecipar isso.  Desempar.  Primeiro de janeiro de 2016, o modo alíquido é 25, você pode ir. cadá essa motra reiga minas para minas, só que aí vai ser a viagem de 1 do 1 do 2,  6, a dia indiente, né? E quando virar o ano... ele já vai pegar essa regra, você não tem que fazer mais nada, com seu consegue se programar melhor, com um de  pessoas que eu pensou indo com um fredeiro de tibultos.  E assim, eu não sei quanto termina minha regra aí, é... é a de eterno, o que eu faço?  Você pode deixar da toxina em branco, tá?  Por isso caso, aí, é isso.  Então, onde é esse? e eu vou lá e colocar data aqui. Então, eu vou supor a viagem, essa partida  vem em 25. Então, você coloca até 31 do 12, 2005 e creou outro cundo, um,  de 16. o outro tem branco, o sistema já vai entender e virar a chave nisso aí.  O rigido produto, você vai colocar na minha seu casa aí é nacional, né?  Pode colocar como zero.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_012.wav ---
+o teste vai ter aí quando foi a CT também não vai ser seu caso e pode colocar a  liquefria de desuito.  A liquefria de alíquia é isso?  É a liquefria de desuito para a gente.  Beleza, então temos a primeira regra aí.  Junte o conhece aí nessa nota, normalmente você tem quais outros tributos?  Eu tenho piz, corpiz e...  e tem?  Não, pega a bruta não tem bem, não?  A sefeia ali, você controla ela para que fim?  Você tem um relatório, é só para consulta final.  A sefeia?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_013.wav ---
+hoje não calcula que não, né? Eu tei esse alô porque é para contabilizar a contabilização. de lini, se feia, o sistema na calculada não é o passo um relatório, uma planilha  Fala-se! ok  vamos fazer o seguinte, vamos deixar o calco primeiro e depois vamos colocar que a questão do IPI tem saída?  Não. Pede a bruta não.  Tá, você tem uma outra em cima que tem?  Sim, você tem o 8000 até.  Tá. Então vamos confirmar e sair e gravar esse outro.  Uma só incidente em qual você percebe.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_014.wav ---
+e depois vai fazer para todos as notas filiários, você vai mudar isso aqui?  não, eu já vou compartilhar isso para todo mundo, já vai funcionar para todo mundo dentro  de aí, por exemplo, sem ES, eu vou efei já  Pode colocar primeiro sem esse.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_015.wav ---
+pode te estar né? Sim?  Eu estou te sentando aqui na final né?  Eu estou te sentando aqui, mas é que é medo.  Você é um ser chín?  É, só que aí, eu estava em casa na margem de valor agregado.  Então pode dar um esque, mas você vai deleitar esse ali,  vai colocar lá em ali pelo tributo, porque você aí vai utilizar só para se ter.  Eu não sei.  É que é isso.  É, mas não é coisa.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_016.wav ---
+Agora o API, você vai dar uma, pode dar uma setinha pra cima que não vai gravar outra  linha, você poderia montar a bela ali, só vender de menos pra São Paulo, 12, né, minas  por norte, 7, é sempre diante, tá?  Eu tinha que fazer por exemplo todo o espaço aqui, isso?  A ideal é que você monte isso pro Ncm e depois quando você focar a dastra ou o Trincm,  você pode copiar, porque a gente já leva toda essa configuração ali, fica mais tarde.  A mica apelou de tempo, sem ter nem esse cachaida, mas quando é em pera tem um tempo de mais,  mais a forma de mais, tem que ter uma forma de dar uma carga nesse dados, né?  A gente ensina para dar uma ajuda, né?  Tipo, na quem já é cliente, na já tem um histórico, a gente pegar isso aí e analisar  e puxa o sistema.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_017.wav ---
+E agora eu vou voltar com esse mieste.  Aí você vai dar setinha para baixo, de mecremam outra linha, você vai colocar uma linha em PI.  E agora?  Vamos lá na DQTUL.TI, na Embaixo, DQTUL.TI, só cuidei e tem uma particularidade de I.  Não vai virar por NCM, mas na perquesta de UFLI não faz diferença, como ele é federal.  Então você vai colocar as terriscas, ter risco, mas em uso f, eu e de destino, que vale para todo mundo.  E aí, qual será a ter risca?  Inicia é um de um, né?  E está com o ponto de origem zero.  E aí, ali, que aqui é três ponto de cinha.  O novo, o trestado, o novo do estado, com o patinho, e o novo do estado, com o trestado, com o péssimo.  E aí, vamos lá, do velho.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_018.wav ---
+e pode confirmar isso. Não vai falar, e o pisco ofins, posso fazer mesmo uma coisa,  pode poder pode, só que isso é mais útil quando você tem variações de produto,  tem produtos que tem ali para a espacial e tem produtos que tem ali que é normal.  Agora, como você não tem essa situação aí, na hora de a gente fazer a regra de calco,  só ver que eu tenho uma regra de alímpica, acaba fica mais simples eu colocar ao lado  do dessa regra, porque isso eu não tenho que informar nesse ir pra todo mundo.  A gente precisa ir com fins.  Piz.  Porque hoje a gente faz isso lá na tes, por tipo de sério, pelo CFOP, né?  Aí vai fazer uma regra de alímpica, você vai continuar a tes, lá eu deixando o IP como  com o piso com o tributado,  e o colô com a narrega de alíquites,  e o salio.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_019.wav ---
+Isso. Isso aí, a gente vai deixar lá dentro, tá?  Tá.  Beleza, então, dos dois exemplos, já dá pra gente...  Pode confirmar.  Pode confirmar.  Então, tranquilo aí quando a SEGAS preenhecem.  Depois, dependente, ali vai pro alguns calculos em postos.  Para a LELLO, isso a gente tem a regra de código de prestação de serviço.  O que essas regras de código de prestação de serviço vão fazer.  A mesma coisa que a regra por ensime, só que para a parte de serviço, porque é dependendo do serviço,  você dá prestância, tem uma líquia específica de SC, outra de IR e assim por diante.  Então para a serviço a gente controla por cor aí.  Então se pode ficar aí.  O lado do REI e Fila, esse código está falando a esse?  É, não vou falar assim, e não é.  Fiquei no seguinte, o REI e Fila tratam ali o código como aquela lei complementar.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_020.wav ---
+ele é o 116, então já é meio que paduramizado, quando você manda pra ir lá,  é, precisa trabalhar com o código igual, não necessariamente. o que você falou e a centra do que?  Lei complementar a senão de 16.  Mas aí você está falando a prestação de serviço, né?  Não, estou falando assim, um reenfinô... para o geral, trata a code civis com base nessa lei,  que é uma weakme equipaduronizus code,  porque você concorda com o code civisso,  ele é variável de... Então, vamos falar assim, se você presta serviço para prefeituras diferentes, você teria que emitir. nosso pop-up você emitir a nota pelo sistema.  Para cada prefeitura você tem que emitir a nota com o código de serviços que aquela  prefeitura entende.  Muitas vezes pode não ser o mesmo. Obrigado.  Obrigado.  Obrigado.  Então sim. Oi!
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_021.wav ---
+entra na regra do código aqui, a despertação do serviço.  Isso pode entrar, pode também incluir.  Pode buscar o código e vestir algo no outro já?  Pode, pode buscar.  Esse código que está aqui, é porque eu estava falando com você lá no caso é a natureza,  o código é natureza, né?  Esse código é o caso do NCS agora eu sei que está.  Não, não é o código de serviço, isso mesmo é que é que me enanota, né?  pode dar o que que eu escolte, pode pegar isso escortei?  que é no caso o NCS.  Isso pode colocar o Tribute NCS.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_022.wav ---
+O que você tem?  O que você tem?  O que você tem?  Ali que a padrão? A líquida padrónica vai funcionar, está bem que tem 2 gritos, um grito que há líquidos específicos para o município e outro para a líquida padrões. Como a gente pode trabalhar? Os tributos que são federais ali, a gente tem que preocupar  com o início. Então, se entranquilo, esse ponto.  Acho que vai falar no... Por exemplo, a hora que eu preste o serviço no Gare 2, eu estou a hora de 3, que varia  Então vou fazer assim. Quando você também vai falar, presta serviço para uma lista de substituirante, se você está sujeito,  a emitir sua nota de acorde código. daquele município. Tem onde eu cresceu os serviços?  Então, por exemplo, você pode colocar ali que para um determinado código de serviços  quando você prestar em um papel aí, seja um... valor, é muito importante para o seu valor.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_023.wav ---
+e assim por diante, tem que fazer essa para fazer essa tabela aí já chegar no cálculo automático.  Agora, para quem você não tem essa particularidade, você pode colocar na líquia padrão aí.  É o que você precisa ter.  Menacea, temos por cento, né?  O caso aqui, né?  Aí precisa colocar o estado aqui, porque são todos estados, então eu coloco a ser isso.  Então, se você não tiver necessidade de se separar aí, você pode colocar só em cima,  que ele não vai entender que essa área que está quadrão.  Acho que é um único que teria, vamos fazer,  meio que essa necessidade aí maior.  Talvez seria para a questão ali do ISS.  Eu inclui outra aqui então.  Isso pode dar sete tempo para baixo, inclui outro.  Você vai ter mais o quê?  Vai ter IR, IR, PCC.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_024.wav ---
+E aí, Nes? E aí?  Esse aqui, Nes, E aí.  Você está um pê?  Oi, o pê.  O pê.  O pê.  Eu não acho que o Nes está com o discorre.  Eu acho que um pústio é que a nota da macidula aqui, e aí é o nosso fã.  Ah, tá.  Então, é um imelico mesmo.  Quanto imelico?  É que é tudo imelico, né?  É o número de referência, né?  Não.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_025.wav ---
+O Francisco, mas aqui no caso está falando, que ela está falando, vamos fazer as notas saídas,  só que isso aqui é entrar na Francis, sempre o B, para já regra.  Não, depois a gente vai acabar voltando lá, o que mais para te explicar, o processo.  está aqui, município e colocar 5% da caixa.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_026.wav ---
+Vamos colocar a gente para fazer a cor com o estado, qual é que o município?  A 150.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_027.wav ---
+e aí tem um lugar que é três por cento, deixa a faiz, né?  Pode deixar isso, assim, é pão pê-lo aí enquanto.  2.  Então que já está lá em cima, né?  É, se você tem marchinho campo, porque vem alguma coisa,  que lá é Pitangi.  Pitangi é 2 também que eu olhei aqui.  Tem um lá, você tem que ter um do lado aí, como é que chama?  O preto não tem certeza.  Pagar também é doido, não é, gente?  O doido.  E o tanguí é doido.  Eu tenho lugar de 6, 3, 5 ou 5.  Não tem certeza. Não deixa só esse.  Isso é perfecto. Pode ir.  Mas vai também.  Vamos salvar.  Aí, aqui, ó.  Aí também tem o PCC, né?  Aí eu o pescestei.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_028.wav ---
+ele é calculado ser parado não é o pisco ou fim da contribuição mas a  retenção é junto não é aí você pode colocar p7 com o  hatch para que a gente coloque aí é só pagar esse três e tal para  se ele quer três mas que é nada o serviço é doido não não  e não atrever a história.  Mas do lente, eu acentei a ter que ter sido um casa à parte de 2012.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_029.wav ---
+É difícil não caspecer, não é um coisa de revestirem de lá.  É...  Pode ser que você falou o que é que?  Um tipo de coisa de pizreto, não?  Essa é a essa, tem pizconfinhos também, não tem?  Não, mas aí, no caso da pizera não entra, não tem treta, não?  Não, pizreto, seria pizretido, com o cê-tido?  Tem treta, aqui, né?  Tem treta com a pizretinha, não tem treta, não tem treta.  e se colocar, se você é tudo mesmo,  é isso.  E se colocar, a gente está meia.  E aí, o fim de 3.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_030.wav ---
+Eu vou se tornar um bom sessão.  E quando é esse?  O que é o retesão aqui?  O outro é o C, S, L, L.  O C, L, L.  e até vier.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_031.wav ---
+vai ser contribuição social ventilante na fonte né?  FF, não.  Não, aí vai ser CES, casa sapo, lá está lá está.  Mas não achei também não.  Tem que ter ela.  Olha, ela deve estar com CES.  Mas dela CES, que é soblouco, soblouco líquido.  Mas é ela mesmo.  Não me equivou, não te digo, isso.  Que lenta, feite e sair pode gravar.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_032.wav ---
+Eu já estava um negócio de ser difícil, isso aqui.  E onde é a dar com esse tipo de serviço aqui, no carro?  Isso aí fica lá no configurador.  Tem muito um aqui, então o papel tem que eu dir comigo ação, né?  E o que não é, porque o vipo ainda dele até um por cento.  Pode falar aos outros agora.  Depois aí, já tenho umas tabelas que vem por padrão, né?  Porque a tabela é de código, situação tributária.  isso aí é uma listagem da CSTS, que a gente vai utilizar pode clicar no link de baixo aí,  então tendo isso em s, se precisional, e t, s, s, igual por exemplo, recentemente ter  de diversificação ali de...
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_033.wav ---
+criaram um código novo, né? Foi o 53.  O que é o que acontece, né?  Pode utilizar aqui?  Pode, pode utilizar.  E vai ter um novo também, eu acho que agora por causa da...  A gente vai sair com o CST novo, não é, né?  Aquela gora tem que estar com um pulsando lá, não é?  Tem um Cossé, vai ter um Cossé do novo, não vai?  Vai, você tem, né?  Então caso sempre tem, né?  Aí nesse caso, isso é incluir na lista de CST, por que isso aí?  Depois, mais para frente, você vai ver que a CST é saída da testa também.  se vai estar no nosso regras de esculturação
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_034.wav ---
+que a gente vai conhecendo o fupuro, tá?  Porque antes, por exemplo, é uma nota que era  ST-050 e um caso é a diferença do que eu falo,  não vou te querer zeros, erros aqui.  A dão-me era uma que saída, né?  Agora vocês vão lá na regra lá.  E agora?  Isso aqui, como que vai ser atualizado?  Você tem que incluir na mão?  de uma situação, dependendo da situação ou vai ser inclusão, vai ter que entender o que  pode soltar lá, ou senão vai ser autorizada automaticamente.  E cedo configurado?  É do configurador distributor.  É, agora.  Beleza, depois disso aí, a gente tem duas informações de escrituração e code receita,  que é como ser escriturada a guia e também aquele código de receita,  ser mais pra faturamento quando se emite pra vários estados diferentes.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_035.wav ---
+porque dependente de cada estado você já viu com o código da receita também muda, né?  Então em cima disso aí a gente consegue  a fazência ajuste do código ali.  Tá?  Vai vão deixar isso um pouquinho mais para ver em prolacoração  e o próximo seria perfil, tá?  Mas só para não ficar muito teórico, vou dar um colo lá na frente  e vou voltar para o perfil para você entender o que a gente tá fazendo, tá?  A do perfil aí, no perfil a gente tem perfil de produto, operação, participante e origem  de estino, pode explicar o que é cada um deles, tá?  Depois abre a regra de cálculo aí do documento fiscal, eu tenho a regra da base de cálculo,  ou seja, como colucular base, como vou calcular a líquita, como que eu vou escriturar  cálculo do livro, se é se ter o que como fazer, tá?  Então para ir no meu monte de cadassos e você ficar perdido, a gente vai lá em regra  de cálculo e documento fiscal, esse útil.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_036.wav ---
+pode incluir, não entende, pode dar um ok, o que acontece?  Se me perguntou lá antes, onde vou amarrar isso?  Então a regra de cálculo é pertributo, então a gente colocaria ali, por exemplo, que a gente vai configurar o ICMS.  Pode ir lá no tributo, vai ser na verdade, na parte de baixo, não em tributo, dá um entre aí.  Para aqui?  Isso.  Mais um, e sem S.  Então, seja, eu tenho uma regra para cada tributo.  Vou ter uma regra para o sem S, um equipei, que os confinjam ali.  Onde que, dependendo dos meus perfis ali, eu posso ter mais de uma regra.  E agora, a gente está conversando sobre a questão do simples nacional.  Eu tenho dois regros para o sem S. Uma para o meu grupo de clientes, deve ter que crescer  e outro para o meu grupo de clientes simples nacional.  Por exemplo, a gente vai definir melhor esses grupos daqui a pouco.  Eu só perceito que tem uma ração disso tudo.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_037.wav ---
+Então pode lá pro final, rola tudo, vai lá no final zão.  Eu vou pegar e vou amarra ali esses grupos como que vai funcionar, qual é o grupo de produto, meu grupo participante, de operação indestínio, que esses caras são filtros.  Então seja, a altura também não é uma nota, se o produto está dentro do grupo do produto,  a origem destino, ou seja, o F, está um dentro do rengi esperado, o participante também está dentro do grupo,  e a operação, ou seja, o CFF, o que o sistema vai fazer? Ele vai disparar o cálculo, seria o quê?  Sobe, pode voltar lá para cima, seria ali, a base e a líquida e a minha regra de escrituração.  Então, assim, vai calcular a base, vai calcular ali, lá, onde vai pegar a líquida, dependendo  a situação lá da regra de Ncm, tá?  É, não, onde que vai escriturar?  Da regra de escrituração.  Então, então, então, te mostraram isso aí, só que a gente fica muito perdida de ter, ó,  a gente vai voltar de novo com mais cálulas.  Mas, se você entender que tudo que a gente está construindo e para trás, vai ser linkado  do mar é grito de cálculo.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_038.wav ---
+para que ela se compor corretamente linkada a situação.  Beleza?  Ah, mas eu menino, né?  Pode falar?  Ah, né, então vamos para fechar aqui?  Vamos voltar lá para o perfil de produto, tá?  É isso?  Isso.  Beleza.  Foi?  Pode incluir.  Esse aí, na parte de perfil, hoje a gente precisa um pouquinho mais planejamento.  que mais planejamento, porque dependendo pode estar aí na quantidade cadarça que a gente  tem que fazer.  Mas por exemplo, o que você tem de produto impacta no seu cálculo?  O tipo do produto, você é material de consumo, você é material prima, produto de cabado,
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_039.wav ---
+Eu estou com ser antaída, né?  Isso.  Então, essa aída que tem,  é o Spotify.  Quê naquele caso que eu produto,  que é o produto,  está do Bruto, né?  E eu vendo uma distributação  e bem não tenho situação nenhuma  e eu tenho o SMS,  me dependendo da venda,  eu estou considerando desde minas de poder que creem ter o diferente e produz simples  e semia é tributado ou consumidor ou CP, consumidor final  é tributado  se eu vender para fora do estado, esse produto é tributado  se eu vender para consumidor, não contribuinte, tem de falo  Então, isso é para o grupo de clientes.  Eu falo a solicitar a Toys e tenho uma situação.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_040.wav ---
+Se eu vento também, pede, e se considera lá que tinha xímos lá no superior lá, e o  produto é não tributado.  Ok.  De catóis, tem situações.  E a transferência também, que ela é diferente.  Não quero falar assim, restri-te a ser chó.  É tranquilo, porque ela não perfil, tem um perfil de operação.  Aí eu consegui colocar tudo que é produção próprios portada, entendeu?  No calcula.  Ali foi a transferência, mas não é tranquilo.  Isso aí é até tranquilo.  Mas só pensando com relação a questão dos produtos ali.  basicamente, tem algo que possa ter um impacto geral na tributação, vou te dar um exemplo  para de um outro ramo na nave conceita.  Medicamento, medicamento, tem um para a questão de semiais e ele é trata de comunicação  neutra positiva.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_041.wav ---
+e negativa. O que isso vai fazer? Vai falar se, por exemplo, você tem a ct, se não tem, certo?  Então, o corpo, aleatoriamente, eu preciso ter um grupo para cada, porque isso,  independente, foi explotação, quando ele foi, vai fazer uma diferença no meu cálculo.  O óper exemplo, quando ficar fo... ali que estão de...  e vão fazer negativa, ele é CP, então eu preciso ter uma separação nipuncalco de SQT nesse caso.  Entendeu?  No seu caso, se acha que tem alguma coisa aqui em Pacta, ou tipo assim, só que é um grupo,  meu produto é tributado, na maioria dos casos aqui, né?  Resolveria, ou é separar a portiba de produto, a produto acabado, ser a mercadoria?  Porém, sei, minif...  O problema do NCM, vou falar assim, é que essa definição, nós se tinha um pouquinho mais  genérica, que para cada grupo que eu crio, eu tenho que ter uma regra de cálculo vinculada.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_042.wav ---
+Então assim, por hora até a gente entender melhor,  e o popular então acelerar então que ele é ser bucado, né?  Por hora até a gente não tiver um sim entender um pouco melhor, tem um grupo todos,  todos, eles de novo e colocam o código do produto todos.  E depois, conforme a gente for criar nascegas ali, nos volta e dá uma ajustada.  E até para a gente fazer um teste também, depois faz para frente a paga base e faz um negócio  às vezes em teste, evadida mais cedo um dinho e depois a gente sobe para a produção.  Pode confirmar.  Perfide operação, ele meio que já vem preenchido mais ou menos.  Qual por exemplo, você vai ter ali a posição de serviço para a comunicação, você tem interesse da  dual importação. Se você visualizar, aí vai ter a lista doce, a fé, o peso de lindento.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_043.wav ---
+A quisação de serviços com um encaça interne,  desde todo o CFOP, que entra o PC aí.  A interesta do álcool, você vai ver que vai estar ali com o CFOP,  de fora do estado.  Então isso aí, meio que vem, alguns grupos espera configurados.  Se a gente vê necessidades, tipo transferência,  uma remessa, não tiver aí num grupo específico, pode ser criado.  Se você for lá para o final, tem as vendas aí.  todas as saídas, tem um outro que é todo o CFO, devolução de vendas, devolução de compras,  depois ali mais para se entrar nas vendas de energia, as vendas de produção de estabelecimento,  enfim, por que? Você está vendo que isso é filtro também?  Que isso vai ler da onde? A gente entra a questão da peso, para assim, isso com configurador.  Eu vou ter que ter a mesma quantidade de tese, não, vai cair muito.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_044.wav ---
+O que vai definir isso a texto?  E, igual a, por exemplo, vamos supor que antes, se você tinha que ter uma teza ali com 5.01,  se fosse tributado, isento ou outros, por exemplo, você tem 3 tezes diferentes.  Agora, você pode ter uma teza só com 5.01.  O que vai fazer a diferença pra você ficar aqui, é brana o texto ou não?  Seria os outros campos, atualizam stock, atualizam financeiros, tem que geracia, apelão,  ap controlam poderes terceros, tudo isso vai ser diferença.  se dá uma reduzida legal, o que o pinho traga de saída vai ficar basicamente para  gerir essas integrações que a gente tem aí e ajudar a definir.  Olha, rega que vai fazer com o base com o CFOQ.  Beleza?  Perfide participante, aí embaixo.  Você pode pedir para incluir?  Pode incluir também.  Aí, que você perfil, agora, já tem algumas coisas que pelo que a gente conversou já tem  Você pode cadarça são 6 gis dos 001.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_045.wav ---
+Você pode cadastrar ele como depti-créstor.  E pode informar um cliente nessa situação aí.  Você lembra que vem de muito?  A massa por exemplo.  E você vai colocar ele, você cliente oponhecedor, e pese que é a terlocólico dele.  Lea e chica.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_046.wav ---
+aqui tem de dez e crece minas gerais, o Francisco.  Para fora, não faz diferença não.  Para fora eu tenho que se botar.  Para fora eu tenho de saco de MBA.  Só não vou ter de falto, porque está revendendo.  Você vai para mim, é ali.  Você vai para mim?  Você vai para mim?  Você vai para mim?  Você vai para mim?  Você vai para mim?  Você vai para mim?  Você vai para mim?  Você vai para mim?  Você vai para mim?  Você vai para mim?  Você vai para mim?  Você vai para mim?  Você vai para mim?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_047.wav ---
+Então, vamos deixar como deve ter crash então, em MG, ele vai ter essa diferença aí, pode confirmar, depois aí...  Pode colocar todos os clientes aqui.  Vai, para isso aí, vai ter que colocar, para isso aí, para esses perfis todos, tem opções  a gente facilita a dor, isso que permite a gente puxar ali cadastro, ali para dentro com mais alguns filtros.  É para ajudar.  Pode ser mais.  A gente vai ter que cadastrar um com a relação a simples nacional, não?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_048.wav ---
+e se eu tivesse que ir, eu não tinha que ir. Então, deixa eu te ver por você, ó, isso é isso. Passar o bar.  Pode ser o bar.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_049.wav ---
+porque em semina também, porque...  vamos fazer depois o detalhe é de semiga ou outro assim,  outro exportação não precisa né, que são incómodos, é que eu peguei.  Só só precisa, né, mas o fato de ser consumidor final ali,  você vai ter ali também, né?  na sua nova perfil de dopingal.  Cria-te a parada melhor, né?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_050.wav ---
+e a gente se trata de uma tirança.  A gente se construir do que se escrava.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_051.wav ---
+A gente entra ela depois de seu trafico.  Então, já estamos com os três grupos ali.  Perfidio origem investindo.  A gente já vai nem que separar ali o que é o operação interna, todos os UF,  saí dos interesses do AIS,
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_052.wav ---
+ali com o base no estado que está configurado em presa.  Que que vai estar só na origem e todos deixando tudo do TOOT, que do AC, né?  E isso, gente.  Então isso aí já serve para o nosso filtro.  Então vamos partir ali agora para a regra de cálculo ali, para a regra de base de cálculo  especificamente. Pode incluir. Pode incluir.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_053.wav ---
+Como é que funciona a regra de base de calco?  Tem duas formas a gente fazer.  Uma, vamos falar assim, quando a gente não tem necessidade de fazer muitos dados,  onde a gente basicamente coloca, onde vai vir uma olor e origem só a olor e mercadoria,  que vai vir uma contábio, enfim, como que seria?  E isso aí, a gente coloca isso aí que tem desconto, frete, despesa,  como que isso vai influenciar na base de calco.  e outra pronta que a gente pode ser  base de calcula mesmo em de acordo com a forma  que a gente pode criar.  É o caso de de falo, a SP, tem uns calcos  mais específicos que estão da base de calco.  Aí nesse caso a gente edita a forma de fazer ela aí.  Pensando ali, né?  Base de calco também não necessariamente,  eu preciso criar uma base de calco para cada imposto.  Eu posso ter, vou fazer uma base genérica ali, que seva para vários impostos também.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_054.wav ---
+E igual por exemplo, no que diz respeito ali, a ICMS, o pscofíncie tem um creche do ICMS  dele, já é um pouco mais específico, mas no que diz respeito ali, a ICMSPI, desconto,  frete, despesa vai estar impactando na mesma forma, na base de cálculo ali, ou tem diferença,  tipo assim, para o IPI eu não considero frete nem desconto, por ICMS eu considero.  é tudo a mesma coisa né? Então vamos criar uma regra ali e vai ser a bid bola ser de casa  001, vamos ser 4,0, isso número 1. Foi em jouto, tem esse 4, tem? Isso, 0000,  3 zeros, número 1.  É todos ele tem 5 letros.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_055.wav ---
+3 disso aqui né?  5  Beleza  É, pode colocar aí base de cálculo genérica?  Ah, paraíso  Só, valor de origem  Valor de uma cadolíria?  Isso  Mas se for colocar lá, desconto  Que que faz? Nada, subtrai, soma  O desconto, subtrai né?  Não, beleza, pode colocar lá aqui, subtrai  o frecis.  e te vencui na nota.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_056.wav ---
+normalmente nem o desonerado aí acaba que a gente tem dedução da base de calca ali para  ainda para sua frama, mas não consuma o guia ainda para sua frama, né?  Tá vendo, não.  Tá.  Tem que ir, mano.  Capado, pra agora depois com o mesmo futuro lado.  Tá.  Depois em detalhes do detalhes da forma de calcura, dar uma olhada de ir lá para você ver como  que foi montado.  e vai meio que muito a misca caso para você, ele pega o valor da mercadoria menos o desconto mais o frete
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_057.wav ---
+Depois ali, quando chega esses outros casos como a gente esteve de este,  a gente ajusta normalmente a ir porque a gente precisa,  mas detalhes como que a gente monta.  Pode confirmar lá em cima lá, gravar.  Perdi estar a forma que espereis.  Aí eu tenho que fazer tudo de novo.  É porque aí ele passa, porque eu vou voltar lá em definições da base de calco,  ele passa para a forma manual.  ele é a forma manual, ele trava os campos debaixo porque você vai ser  como ela vai ser feita, né?  Eu vou te dar tudo aqui, gente.  Aí estou meendo, né?  Vou dar conta dele.  Não, não sei o que é tranquilo, não é nossa prática.  Também sim.  O intuito é eu te passar como é que funciona, né?  a gente vê todo o esquema aí
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_058.wav ---
+e se necessário, eu faço assim não, mesmo assim eu vou querer mais agendos para acompanhar ali para eles que estão fazendo certinho para acompanhar o lançamento.  Aí eu te acompanho, entendeu?  Eu tive como é a Valeia.  O que? Qual parte?  O configurador.  O configurador mesmo?  Qual como que vai ser a parte de...  Seria de 6.10, né?  Seria em a partir de...  Vamos colocar assim a data limite final seria julho de 2027.  Entendeu?  Só que a gente vai começar a mexer com relação de reforma.  Depois tem cálculo,  vamos falar de partilha de tributos,  a CBS vai ficar um tempo de partilhando, igual o aconteceu com a de falo.  Quando isso, o cálculo da CBS, de CBS, vai ser por aí.  Então vamos falar assim, você tem um prazo de, como disse, julho de 2017,  mas, inevitabilmente, a gente tem que começar antes.  acaba que adianta um pouco.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_059.wav ---
+E aí, beleza, pode salvar aí.  Agora, a gente vai para a regra de alíquita.  Essa regra de alíquita também, a gente vai criar ela um fóssin, genérica.  Por que?  Eu tenho as alíquitas informadas lá no arregro por ele de cem, então não preciso citar  aqui, é uma alíquita do ICMS, BPI, enfim, porque esse mesmo cão pivali pros dois.  Você pode deixar como um fóssin, a ele, né?  e isso coloca a liquidez genérica.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_060.wav ---
+só com valor de origem aí, esse sim, a gente vai colocar com fórmula manual.  Por quê?  Por quê disso?  Pode lá no detalhamento da fórmula, a gente vai falar que a gente não quer informar  ali que tem dentro, porque a gente vai pegar ela de um local.  Tá?  O que?  Pega ela de um local, que é a reagra lá do NCE.  Pode clicar aí lá em detalhamento da fórmula de calco.  Isso, você vai pedir para editar a forma e lá em cima está a veritineta e tem esse tipo de  regra a ser consultada, até com o valor origem, você vai clicar nessa lista e tem uma enxana 06  índices de calco.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_061.wav ---
+Porque aí se a selecionou em cima vai ver que ele liberou embaixo, com a consulta de regras.  Pode clicar na consulta de regras e vai mostrar uma lista para a gente.  Nisso aí eu vou pegar esse primeiro ali, ali, a liquide NCM, ou seja, a liquide do NCM.  Por que? De acordo com o contributo que eu colocar pro lá dentro da minha regra de cálculo,  ele vai lá e pesquisa se tem algo no NCM.  se tiver ele vai pegar e vai trazer para você  pode salvar? pode salvar?  é percentual  é volta lá no determinado calma  ficou faltando, pede acreditar de novo  toda vez que você selecionar em cima, você tem que adicionar em baixo
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_062.wav ---
+que isso é isso, isso aí agora salva, mas isso aqui vai estar focado desse  regra de ncm que está aqui em cima aqui, hora no cadastro, é isso, aí eu tô falando que  vou buscar isso aí lá no cadastro, depois você vai ver que lá na regra do  piscofins eu vou fazer diferente, eu vou sentar a limanual, então seja cada  se você está a situação de precisar, a gente faz ali com forma necessidade.  E agora?  Beleza, agora a gente vai para a regra de escrituração.  Essa aí já é setada por imposto.  Toda vez que eu comece a uma regra que tem um imposto específico,  você vai começar com dois distas ali para ir na costa, né?  E se é para ir sem esse...
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_063.wav ---
+que é que está falando isso, mas para colocar como e c00, a irregra de  escrituração, se para colocar como e cms, nesse caso ali, quando a gente vai  ficar nessa mais de uma, a gente vai ficar na sua alma com o diferido e uma pute  é um botado, né?  É um bota do bota do que você tem esse bota do bota do  bota da nota que ele é só  a residência da parte ela é reduzida  isso aqui é porque isso tivesse  radical reduzida e isso?  E este? Para onde? Para ser uma do restante, né?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_064.wav ---
+Então, por exemplo, uma parte tributada e outra parte é o outro.  Assim como você pode ter nota de uns consumo que ficaria ali como...  ... eu vou falar assim...  ... as duas partes em outros.  Tem 4 partes em outras partes.  E...  Por isso que a gente fala que é específico, a gente tem que pegar para cada questão.  aí por que a gente tá colocando em c001?  porque a gente sabe que isso aí é do ICMS dá c00, as outras dois dias,  a eu vou colocar um do diferido, em c501, 01  é legal, é que eu vou falar com o tabela, o que você tem  a gente vai pesquisar, vai ter aquela estinha em estabela  e a gente vai pegar a tabela, a pertinente aqui em posto  é que é do ICMS  isso
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_065.wav ---
+na tabela de baixa em Nova Sina, qual a SST quando foi devolver uma nota dessa?  E a devolumção está na necessário, né?  Sim.  Pode.  Pode.  Pode ser caso é diferente.  Isso vai ser sem ser o no diferido é 50-51.  Esse pode deixar de comer c, por exemplo, 51, né?  0.  E mesmo seria?  Isso.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_066.wav ---
+ou  é assim outros?  percentual de ferimentos  80% né?  se tem um passo, você vai fazer o dia não tem?  tem  a beleza é difícil  o meu  não tem medo  você vai  passar o carro?  pode salvar  aí no carro tem que compensar o estomei  vai ter situação
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_067.wav ---
+quando o consumidor final tem alguma diferença?  quando o consumidor final tem alguma diferença?  não é tributado  é de pau, né?  na folha de estado  não é o caso, não é?  as acistendocenias se ficam com o que? com 90?  é de ver  é de ver  tudo integral, é de ver  e de fim, é de ter que ter não.  Vê, des, é outro caso, aí se ele é em suspensão, não tributado.  E aí, não se butado por dar certo?  Pode que nascer também.  E a extensão também pra...  Ah não, eu estou falando em remessa com o circo.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_068.wav ---
+O C, o que eu vou falar com o C?  Aí vai se processar C. 41 no tributado.  Leipóis colocou com 41,01. E o meu pai?  E ele é a contributada?  E ele?  E ele é a gente?  E ele é a gente? Nesse caso eu não tributo o tatu, você joga ele presenta outros.  Pra outros.  A gente vai de como outros. 40. o que a gente tem que fazer
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_069.wav ---
+e a gente pode colocar o barco, o criou o outro.  Está faltando mais algum?  Seis, os pensão, mas aí é remédio para conhecer, não é bem.  Não está também.  Deixa mais ou menos que ela se estrada.  Tem que ir bem, não está faltando, não está se estrada.  Vamos ver. Vamos ver como está mais situações ali.  Enquanto a gente sente, não está faltando mais.  o data, o link do meu.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_070.wav ---
+pode salvar, e aí depois disso aí a gente vai juntar tudo isso na nossa regra de calco  tá, você pode ir lá em regra de calco, é de brincar com o ir, ok, aí é mesmo esquema  a gente vai colocar a ct ali para ajudar a gente, então vai ser icm s, vamos colocar a primeira  que é a tributada, 0, 0,  MF tributada.  Isso.  Fibuto, que no caso é 60F.  Sim, sim.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_071.wav ---
+e isso e deixa um branco aí e a data final tá? Basa de cálculo, vai ser nossa base  genérica lá, ali que eu tenho que ver, vai ser nossa litra genérica também, é que é  financeira, e sei mesmo esse para a retenção, a gente não vai tratar isso agora,  e o que você está fazendo?  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.  Se você está fazendo, não.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_072.wav ---
+a primeira vez não é escrituração e precisa colocar  o  semia é não  não como lativo né ai também precisa de colocar não  não não isso aí a gente vai tratar como notividade de perqueção de piscofinhos  a escrituração que precisa.  Isso.  É.  Não é mesmo tributado.  Ok?  Ok.  Beleza.  Depois, após lá para o final,  origem destino.  Funcional, né?  Graças a insinutéria.  Então, essa situação no tributado  vai lá e secando quando for interessando a aula.  É isso.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_073.wav ---
+O ultimão para operações internas, que o participante fola naquela opção do CIMC.  Vamos fazer a internet conceitos, pode colocar a operação internas.  Sim, é necessional.  Consumido o final também, é isso.  E operação.  Por isso eu comentei que com o formo de ir colocando os grupos lá, a gente tem que fazer uma vinculação  de irrega para cada grupo.  Então, a gente tem que achar o contexto ali, que não fique, vou falar assim, muita  na lítima, no geral, muita regrana, mas também que te comprou, de sabe?  Aí vai ser o sessão, pode lá, por final, você vai ter as vendas, não?  Vai ser vendas?  Sim.  Toda a vida.  Aí você pode ter um sob mais, você vai ter vendas mais específicas.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_074.wav ---
+o tais de uma vez na minha vida. Tudo está sendo assim, né?  Hum, Hum, Hum,  E o produto. A produtilidade pode pegar todos, né, que também é um perfil mais aberto.  É. ou daqui sempre, é um negócio. Pronto. E ele é forte, dá pra ir.  Acho que isso aqui vai dar com certeza isso, assim, só assim. Foto tem muito feio.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_075.wav ---
+que vai fazer agora para fazer um teste?  Tem uma forma mais simples de fazer, eu vou te mostrar depois de fazer um após o café,  mas o que pode fazer?  Sabe que a rotina inota manual de sair da ali?  Vamos lá para lá para esse cara.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_076.wav ---
+e aí nas casairas, se for em uma, pode colocar o cliente ali,  se for do simples o produto ali, acho que não vai deixar em por aí, vai lá no  feed de compra então, já deixou, por exemplo, eu coloquei o feed e o  e o que tem pra ver, se não cita, o que é do fim do lado.  O que é do lado, né?  O que é do lado, né?  O que é do lado, né?  O que é do lado, né?  O que é do lado, né?  O que é do lado, né?  O que é do lado, né?  O que é do lado, né?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_077.wav ---
+e isso a gente vai salvar não e o que é o nosso é mais bem o cálculo também  tá, deixa eu te falar com isso aí eu vou pegar um produto, eu vou produzir um todo, né?  né, ela é um produto taberna, tá?  um produto taberna, pode pegar ali, a gente vai que você pegar um que tem aquele emceme,  pode codar a líquita, né? mas aqui na regra, não sei, eu acabei  está todos ele vai te ver todos o problema que às vezes pode não encontrar ali  uma líquita lá dentro né  porque a gente não fez a rega pra ele sempre pra galera toda também  tá super bem sem catos
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_078.wav ---
+e que ele não é tão rico. o seu ento. e o que é que a gente não tem. Mas o que tem no hacha?  Ele tem que ser a plena viscura.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_079.wav ---
+com o cor.  É muito difícil.  Nunca é só que por exemplo.  Eu não sei se eu lhe atrai em ticatô,  é só que eu lhe atrai em ticatô,  é só que eu lhe atrai em ticatô,  é só que eu lhe atrai em ticatô,
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_080.wav ---
+E agora?  E agora?  E agora? nesse caso, aí, essa vai ver que ele não calculou porque está perdendo os impostos antigos. O cliente calculou o ex-cunho, não tem que calcular, mas calculando o tira, a gente  pega aqui a regra ali, e c, 0, 0, 0, 1. Ele ou?  Ah, está, eu tinha que pegar isso aqui.  Sim, você tinha que pegar esse código, não é? às vezes vai acontecer isso mesmo porque uma determinada regra não vai estar ativa ali para aquela situação.  O que a gente vai fazer? Uma possibilidade seria se reconfrirem o perfil todo, mas as as ameixatinhas.  Se você se reconfrirem os perfis todos ali dentro.  Perfil de cliente. na verdade de 1.000 e que sozou na gosto de...
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_081.wav ---
+A regga de Enseme era para ter pego, entendeu?  Ali, mas...  Não, mas é ser busquepe de lá, não está certo, por aqui.  É quando a problema regga de Enseme, ele traz mais traz ali com qual é que está vazia, entendeu?  Mas mesmo assim ele vai trazer.  Deixa eu ver se eu peguei clíquico, perigo.  Beguei o cliente do simples não.  Tem que ser, você vai ativar não.  Você lembra quem quer?  É a gente.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_082.wav ---
+Eu vou colocar como  é quanto particulares,  e tal de pelos tipos que veem que não vou colocar,  é o 100-16.  É o que é o victividade de novo.  Proco cliente em cima lá,  dá um deletinho pro dupo, já trocou ele em cima, né?  Fecha nota e abra de novo.  Você lá aqui está incluindo de novo?  Isso.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_083.wav ---
+Não, até que a questão do... esse cara é simples, né? Até a questão do simples lá dentro, e não faz diferença, não, entendeu?  Não, eu estou falando no cadastro do cliente.  Não sei se está lá, se você está, não tem?  Sim, para que?  Simples, o que está aqui?  Não, para esse caso aí, não, viu?  Não, aí não é a desada de colocar as tipos saísas, não é?  Não, não é?  Eu não entendo colocar a chip estáida.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_084.wav ---
+Então, pra esse caso aí não, no dia a dia assim, tá?  Porque ele ainda tem que ser a tateza.  Não mudou o que?  É, olha pelo pedido de venta lá, ou qual é ela?  Olha pelo pedido de venta.  Fome lá no pedido de venta?  Isso.  O cancel é isso aqui.  Pode cancelar.  Todo mundo irralemos, sei se isso pode ter influenciado.  Anfatoramei.  Yes.  Incluí.  Yes.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_085.wav ---
+Normal, né?  O inteiro 117, hoje é um monte de estudo aí, não?  Pela em outras ações de família.  e o local que sai daqui.  Pode colocar.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_086.wav ---
+e esse está no do e o  e a gente tem mais de um pouco pronta, coloquei...  Pai lá em outras ações que a milha.  Eu não sei se é mais que acabou ligado a hora que não.  Não, mas isso é isso, e a gente não vai precisar.  Não.  Mas pra gente posso, mesmo.  Pega um leimbaixo agora.  A ver, do que pegou, e c001 em semestre bucado.  Não sei, toda vez com o cálculo fode ativado, ele vai ser substituído aí.  Então, tem isso aí uma forma.  e ele vai substituir o cálculo padrão do sistema.  Sim, o ecatecê estava configurado a cálculo em ser mesmo durante ele, a regra bateu, ele foi lá e substituiu.  Qual o que a gente configurou para o ISO conferência?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_087.wav ---
+Eu vou fazer uma coisa, então vou colocar um temessebo, vou colocar um temessebe e o que  podemos.  A questão é só que, em portanto, cflp, sendo mesmo que está configurado lá.  Tá, tá, sobreposed mesmo.  Por isso eu falei para tomar cuidado, a gente não falei isso em produção, porque se não  já vai sobreviver por um cálculo lá.  E como a gente vai estar trabalhando, não é?  Não, não só fazer o mantukador, não seja como se eu conseguir direita na todo o seu nome.  Não sei se eu tive o anoso sal, mas não é fácil.  E que a gente vai operar a sua insolva que tem aqui, né?  Pois é, a gente tem que dar uma análise do seu adeio.  Que dinheiro pode fazer?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_088.wav ---
+uma pausa por café ali, os quentes e ventinos de cinça e voltando a gente vai configurar  aí para o pise e para o confinço, depois ali, gente pega uma operação com cimeses,  piscofinhos e configura as demais operações ali para você ir vendo a diferença de um  pro outro detalhe aí é a questão do uma rotínfa que eu vou te mostrar para facilitar essa  A conferência também. A gente vê que ela mostra o que está errada e caso não calcular.  Aí fica mais tranquilo de encontrar a gente tem que ficar...  Deixa eu ver se é isso, deixa eu ver se é aquilo.  Corta no caminho aí.  A gente pensa as duas coisas.  Bebeza?  Bebeza.  Tá daqui a pouco então.  Tá, você me chamou no tab aqui.  Tá, deixa eu me chamou.  Tá, não.  Aí, vai até por aí.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_089.wav ---
+(Sem conteúdo transcrito)
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_090.wav ---
+[Áudio de 62.6s - Transcrição não disponível devido a problemas técnicos]
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_091.wav ---
+[Áudio de 63.6s - Transcrição não disponível devido a problemas técnicos]
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_092.wav ---
+Você vai tentar as mesmas?  Sim.  Será?  Você sabe o que você está aqui?  Você está atualizando a sua variável.  Não, pode para fechar.  Não chefe de F6 aí.  Chefe de F6.  Não vai, chefe de F6.  Não deu não.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_093.wav ---
+Deixa eu carregar o min 2, não carregar tudo de novo, deixa eu por ser aqui.  É, dá um afici, atualiza o sistema.  A atualiza o sistema aí e dá um afici.  Tem que eu volto aqui, colo a int no, para dar um aintrela de novo.  e sote dois.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_094.wav ---
+Então mesmo mensage, eu esqueci fechou em mês, mas a gente fechou em mês aqui depois de ela que tem que renunciar a marva.  E o baio de galão, o de bilhito?  O baio de galão, o de bilhito.  O baio de galão, o de bilhito.  O baio de galão, o de bilhito.  O baio de galão, o de bilhito.  O baio de galão, o de bilhito.  A guarda um pouquinho, pranto.  e você pode ter que ver os sols tem uma clara.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_095.wav ---
+Essa rotina realmente é nova.  Ótimo, tem uns dois mesmo, meus meninos.  Ah, não, mas é novo, com testa.  O person do vinte e dois.  É, realmente.  Da problema, deixou autorizar a base ela.  Lá uns minutos que aí vai cair mesmo.  Esse rotina é importante pra gente, pra questão de teste também.  Se quer que minimiza, se quer que está ativou,  Você deixa eu mostrar aqui, pode?  Sim.  Eu vou...  Vou usar a tibau aljo aqui.  Aí se me chamam-tô, vou usar a cabeta.  Bem lhes.  Vamos.  Demais.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_096.wav ---
+O Francisco.  Foi.  Está cá lá, está cá, na conexão.  A água chegou áudio aqui. Eu não sei o que é com o que?  Já que está o tomásco no financeiro?  Sim, pode. que você também. Quem está contabizando lá é o usuário novo, que rotina só a compensação.  Mas ela contabizou tudo no dia. 30. As perguntas da GSC lá estão nessa forma que eu falei.  Ok, aglutina nas amertas.  e o nosso lado. o nosso lançamento está como sim e não para a gotinha mas está moça o lançamento porque  é contobusou o dia 3 de forês que não.  Então deve estar contaminando... e quando vão lá em mim tá?  né tá com a tradição online  lá no terceiro  é  você vai ver ali Nisso eu mistei por mais.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_097.wav ---
+tem a palha pra ali lá na origem então o nome de quem contabizou  é para o lançamento da BFTI  que eles  é que estão falando na conexão aqui mais esperança  eu mandei no orjeito e ouvir isso  essa que eu quero que ele quer que mostra que enquanto abizou  que eu parei
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_098.wav ---
+Ah, eu amo o mesmo, foi o level tão online lá, vou desse meio de um restrem.  Aí tem que ir lá nessa sua compensação, dá um f12 lá e colocar para ele lá.  Com o chante.  Esse eu vou desse, foi lá e mexer, o que tava sem sentimentar mesmo lá.  Ele vai dar f12.  Aí vai colocar o online igual não.  Tá, eu vou esperar aí para assistir, tu vou ir lá falar escril.  Não vá colocar isso online, não.  Não perde controle, que fica pior.  E depois tem que estourne, ele faz uma salmão e clara.  E se tu é algum motivo de estourne, não pode ser não.  Peraí, vou lá, tá? Você deixa eu te falar.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_099.wav ---
+(Sem conteúdo transcrito)
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_100.wav ---
+O francês.  O francês.  O que?  Tu.  Vou me chamar a tua, não.  Eu quero dar um pedraço.  Eu quero dar um pedraço.  Eu quero dar um pedraço.  Eu quero dar um pedraço.  Eu quero dar um pedraço.  Eu quero dar um pedraço.  Eu quero dar um pedraço.  Eu quero dar um pedraço.  Eu quero dar um pedraço.  Eu quero dar um pedraço.  já me abrisou agora o histórico prancis você consegue colocar pra gente puxar  não, tá como que faz? Não, então aqui são históricos, porque ele já puxa né? É porque tá no  como a glutinado? Eu a glutinado lá não tava puxando. Puxando não, deixa eu mostrar o  Torque-sta a laça, assim, que é ver.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_101.wav ---
+Pera e minuto, Brasil.  Alo.  Oi.  Tudo o sei.  Ato, eu não vou dar conta não.  Que?  O que?  O que eu...  O que eu ando a falar assim?  Aí eu fiz ele com o connevi.  Que eu posso fazer?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_102.wav ---
+[Áudio de 65.9s - Transcrição não disponível devido a problemas técnicos]
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_103.wav ---
+O que é o Francisco?  Oi, oi.  Aqui olha, olha que você viu o estoque está assim, balô, referente com pensação, né,  a data viu o que?  É, mas eu sei porque o esto está agutido na Ana do Eva.  É meu, provavelmente quando ele contabe visual lá, não tem opção lá de agutina.  Não, só quando eu visual lançamento, o lançamento aí.  não se, só que é porque lá na contabilização lá estava com a sua opção marcada, aí realmente  lançava o crescimento, só que ele pega o segundo histórico entendeu? Fale do seguinte,  falo para a gesta, a gesta excluíse, lançamento e rodar de novo pela rotina dela lá.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_104.wav ---
+E se ele mostrou?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_105.wav ---
+Não, aí você vai reconfirmar.  Isso foi isso aí, né?  Conferir a escutão de uma sala de filha, né?  Você pagou.  As visualiza logo, a slega, a gente precisa não, né?  Desfilega a sua tentação, né?  Precisa visualizar não.  Só tá não.  Curiu? Aí agora?  Escolhe todos os quatos e manda a rodar o cinete.  Deixa escuir um só, né?  Pra ter sal, pra curir os quatos.  Mas se o ir é apenas o ir, isso vai dar certo.  Agora vale a manas para utilizar o dia 30 de novo, isso vai aparecer que existe.  Aí apareceu o sério, o mês apareceu a nota direita e tem razão.  Não, por causa disso.  Que a hora, na hora, para o troco deixou esse aglutinado também.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_106.wav ---
+E ali como nós não, aqui,  E me choi no topo de a pessoa física, me admesso a conceba. E você fazer o retorno? A pessoa fez um retorno à empresa?  Eu lembro desse caso, de um café.  Oi! O meu...  O pessoal...  A quinta é me cá, pelo que eu não ia mesmo, ficou. Eu ainda acho que eu vou colocar o cento de automissão para o CPF.  Aí a pessoa na hora de fazer o retorno fez a empresa. Aí tese que lá e fazeu o documento entrada, não descompase o retorno da mancadoria.  Se ele vai ver esse problema...
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_107.wav ---
+Deve. Aí teve um documento, lá pelo documento de entrada.  Aí eu tive que criar outra vez pra não controlar a poder de terceiro, porque não tinha  controlado, porque não tinha remesa quando já estava fazendo um retorno. Não me dava  porque eu ficar anota. Aí eu fiz uma vez lá só pra isso, sem controlar a poder de terceiro.  Aí agora que tira aquele relato, olha lá, você mandou ele.  e o que é chama na contabilidade  aí quando eu tiro o relatório ele está aparecendo lá pra isso  que ele vai aparecer né porque foi remeta de um retorno de ou não tem que tirar isso aqui  desse relatório não? Você não deu conta nem de...  ele está com o sal da aberto, né?  está com o sal da aberta?  o que gerou só foi no clima de sair no dia entrada
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_108.wav ---
+a Itaída.  Teria que faz um documento de entrada  e não contabiliza entendeu?  A Mikapéu faz eu... É isso que eu vêm em sua lua, Mikapéu faz um retorno.  O que ela faz o retorno? Nesse...  Fiscal, entendeu? Ou se não...  Como é que me tia a nossa e faz eu...  Me tia a nossa usando a Ateria, esse retorno, como eu tô falando lá.  É.  Não sai desse later aqui.  É isso aí.  Onde são três notas?  Se vota notas de avintos, sei dentro.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_109.wav ---
+[Áudio de 72.5s - Transcrição não disponível devido a problemas técnicos]
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_110.wav ---
+(Sem conteúdo transcrito)
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_111.wav ---
+O franque é isso.  Foi.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_112.wav ---
+(Sem conteúdo transcrito)
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_113.wav ---
+Oi, vem, vai para o barco?  Não.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_114.wav ---
+E aí?  Vai.  Vai.  Não, eu não sei o que eu não sei o que eu tenho.  Se você não é uma boa olhada para a viagem.  Eu tenho que ir para a viagem.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_115.wav ---
+(Sem conteúdo transcrito)
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_116.wav ---
+(Sem conteúdo transcrito)
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_117.wav ---
+(Sem conteúdo transcrito)
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_118.wav ---
+e o que você pode fazer?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_119.wav ---
+Ainda que você pode fazer isso.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_120.wav ---
+[Áudio de 80.5s - Transcrição não disponível devido a problemas técnicos]
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_121.wav ---
+Sim, é que você vai até cinco mil, né?  É, que você vai ver em uma hora de fazer isso?  Isso.  Eu já tenho mais uma vez.  Minha de novo, é que você está...  Sim.  Você me chama de novo.  Eu já me chamo de novo.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_122.wav ---
+O 3 documenta no seu trabalho é o 9 nesse recuência, o 9 de esterbolas.  Isso pode haver de ser esterbolas, pode em simulador.  Operação.  Isso.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_123.wav ---
+e o que você pode fazer?  Pode informar a filial aí.  Essa é aquela.  Isso aí pode colocar como saí.  É que ele tem 0, 100, 0, 100, 27, né?  Isso aí pode adicionar aí, tendo em cima.  Qual? Mas qualquer MP.  em cima. E qual mais qualquer nitpê?
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_124.wav ---
+Você é o seu pick? Obrigado, né?  Já deu, se colocar o clipe, se não está atento.  Você pode dar, se não está lá.  Você pode clicar em calcular lá em cima.  Você pode clicar em calcular lá em cima.  Você pode clicar em calcular lá em cima.  Você pode clicar em calcular lá em cima.  Você pode clicar em calcular lá em cima.  Você pode clicar em calcular lá em cima.  Você pode clicar em calcular lá em cima.  Você pode clicar em calcular lá em cima.  Você pode clicar em calcular lá em cima.  como é que escriturou, então sim pegou, jogou ali o valor todo entrebutado, na todo certinho.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_125.wav ---
+agora você vai fazer o seguinte pega troca o cliente ali coloca o seu  o jeito que está abanado  coloca a operação?  coloca lá em cima tem um chumbo tão voltado lá  o PC não é o PC não né só vamos  dá certo também  esse é o valor não tem  o nariz  qualquer MP que acho que eu vou usar o PC só que MP é difícil  5
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_126.wav ---
+Não, não, não.  Vamos lá.  Vamos lá.  Vamos lá.  Curar a sua tributária.  Aí, você...  Eu sabia que não pegou nenhum calco, mas eu pode agora em minha agnóstica.  Esse é o acelicional tributalique para calcular.  Se é a regrindca, calcular.  E...  Isso aí.  Então, você...  e seja, com o fico na red, essa justiinha pegou aqui a do alíana, você quer entender por quê  que não está funcionando.  Aí, você vai lá em cima agora e clicar em dia agnosticar.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_127.wav ---
+o que está falando ai ó, 81 ali ó, participante não está vinculado ao perfil. na regra de cálculo.  É necessário de estar.  Isso.  Então, ou seja, não me dificuldam ali. Então por isso que desse problema, então primeira coisa que teria que fazer é configurar a questão do grupo ali.  Isso faz que faz. Fiquei no seu canal, mas não tem nada.  Fiquei no seu canal, mas não tem nada.  Fiquei no seu canal, mas não tem nada.  Fiquei no seu canal, mas não tem nada.  Fiquei no seu canal, mas não tem nada. perdão tempo ali.  Oi?  Se não você tem cola perfil de participante, perfil de origem de China,  que fica perdendo tempo, porque isso aí entendeu?  E já aí quando eu vou... Bom, amanhã aqui a gente faz a gente continuou configurando os outros impostos ali.  Piscofins, né? Piscofins a gente tem que matar temas sem essas armas de calco.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_128.wav ---
+o que te mostra como é funciona, a gente vai te meter com forma, a gente faz cá o clube de falo e tal  e dá um profundado a maior nisso para ir, tá?  Tá.  E aí, sobrando o tempinho, se você conseguir resolver isso na par da manhã, na par da tarde a gente vê essa questão de retenção,  como é que funciona?  Que acham as duas mais principais pra resolver mais nada?  Tá.  Tá.  Beleza então, ela?  Então tá.  Então, até amanhã, então.  Porque se fosse coisa para ficar, eu podia ter que ficar aqui mais tarde,  mas é tanta coisa que melhor mais passar para amanhã mesmo.  E fosse um negócio que ia terminar, entendeu?  O amanhã tem mais coisa na diante de peja, não.  Mas eu tenho que ir para um negócio que também está no entro,  porque eu fiz hoje.  É muita coisa, né?  Sim.  E depois sim, já vou deixar também amanhã a gente grava também.  E depois de disponível, você vê comprar,  a gente vai ficar com o albedo, também é por fait a notação também com o calma também,  é bastante informação mesmo, mas assim a gente vai praticar mais, sempre aí.
+
+--- Micapel - 2025_07_02 13_34 GMT-03_00 - Recording_extracted_silence_chunk_129.wav ---
+vai ser praticado eles austivamente.  Isso é a mesma coisa quando digo que chegou aqui mandou  apresentar os tipos de entrada, tipo saindo, né?  Lembra o que você mandou?  Em 2016, eu acredito?  9 de junho de 2016.  Tem pouco tempo, né?  Já vai fazer coisa de 6 anos, né?  E vai coxer até a cabila.  9 anos.  Tem um pouco de tempo para o nosso papel.  Então está bom então.  Já tính.  Até amanhã.  Até mais.  Não há nada.  Tchau tchau.
+
+============================================================
+📊 Total de arquivos: 130
+📄 Arquivos com conteúdo: 123
+
+================================================================================
+📄 Relatório gerado pelo Sistema de Relatórios Avançado VoxSynopsis
+⏰ Timestamp: 2025-07-16T10:44:39.826181
+🔧 Para mais informações, consulte a documentação do projeto
+================================================================================
