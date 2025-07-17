@@ -80,9 +80,9 @@ def test_faster_whisper_cuda():
         
         print("✓ faster-whisper importado com sucesso")
         
-        # Tenta criar modelo com CUDA
+        # Tenta criar modelo com CUDA usando int8 (compatível com GTX 1050 Ti)
         try:
-            model = WhisperModel("tiny", device="cuda", compute_type="float16")
+            model = WhisperModel("tiny", device="cuda", compute_type="int8")
             print("✓ Modelo faster-whisper criado com CUDA")
             
             # Cleanup

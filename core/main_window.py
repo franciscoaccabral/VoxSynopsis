@@ -142,6 +142,25 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
 
     def update_transcription_status(self, status_dict):
         self.transcription_status_label.setText(status_dict.get("text", ""))
+        
+        # Update device status indicator with device info
+        device_info = status_dict.get("device_info")
+        if device_info:
+            device_status = device_info.get("device_status", "🖥️ CPU")
+            model_size = device_info.get("model_size", "unknown")
+            compute_type = device_info.get("compute_type", "unknown")
+            
+            # Update the device status label with clear indication
+            self.device_status_label.setText(f"📱 Dispositivo: {device_status}")
+            
+            # Update acceleration status
+            if device_info.get("device") == "cuda":
+                self.acceleration_status_label.setText(f"⚡ Aceleração: GPU ({compute_type})")
+                self.acceleration_status_label.setStyleSheet("color: green; font-weight: bold;")
+            else:
+                self.acceleration_status_label.setText(f"⚡ Aceleração: CPU ({compute_type})")
+                self.acceleration_status_label.setStyleSheet("color: orange; font-weight: bold;")
+        
         last_time = status_dict.get("last_time", 0)
         if last_time > 0:
             self.last_file_time_label.setText(
@@ -385,11 +404,16 @@ class AudioRecorderApp(QMainWindow, Ui_MainWindow):
             self.device_status_label.setStyleSheet("font-weight: bold; color: #3498db; padding: 4px;")
         
         # Update acceleration status
-        ffmpeg_status = "Ativo" if ffmpeg_cuda_optimizer.cuda_enabled else "CPU"
         if device == "cuda" and gpu_monitor.is_cuda_available():
-            self.acceleration_status_label.setText(f"⚡ FFmpeg+Whisper: {ffmpeg_status}")
+            # CUDA available for both video decoding and FastWhisper
+            self.acceleration_status_label.setText(f"⚡ Whisper: GPU | FFmpeg: Video only")
             self.acceleration_status_label.setStyleSheet("color: #27ae60;")
+        elif ffmpeg_cuda_optimizer.cuda_enabled:
+            # CUDA available for video decoding only
+            self.acceleration_status_label.setText(f"⚡ Whisper: CPU | FFmpeg: Video only")
+            self.acceleration_status_label.setStyleSheet("color: #f39c12;")
         else:
+            # Full CPU mode
             self.acceleration_status_label.setText(f"⚡ CPU Mode")
             self.acceleration_status_label.setStyleSheet("color: #7f8c8d;")
 

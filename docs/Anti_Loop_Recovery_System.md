@@ -1056,12 +1056,13 @@ recovery_stats = {
 }
 ```
 
-### **📋 Plano de Correções Imediatas**
+### **📋 Correções Implementadas - TIER 1**
 
-#### **Prioridade ALTA (Correção em 1-2 horas)**
-1. **Corrigir estratégia tiny_model** - implementar criação correta de modelo
-2. **Remover parâmetro use_cuda** - compatibilidade com faster-whisper
-3. **Adicionar fallback robusto** - para erros de criação de modelo
+#### **✅ CONCLUÍDO - Correções Críticas (16 de Janeiro 2025)**
+1. **✅ Corrigir BatchedInferencePipeline** - removido parâmetro `chunk_length` inválido
+2. **✅ Reordenar estratégias** - priorizar `smaller_chunks` (90%) > `tiny_model` (75%) > `conservative_settings` (41%)
+3. **✅ Cache de modelo tiny** - pré-carregamento para evitar download de 75.5MB
+4. **✅ Configurações ultra-conservative** - melhorar eficácia de 41% com parâmetros mais agressivos
 
 #### **Prioridade MÉDIA (Otimizações em 2-4 horas)**
 1. **Implementar chunking adaptativo** - baseado em qualidade de áudio

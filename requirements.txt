@@ -1,11 +1,31 @@
-PyQt5
-sounddevice
-numpy
-soundfile
-noisereduce
-scipy
-faster-whisper
-psutil
-torch
-pyright
-pydub
+# Core GUI and Audio Dependencies
+PyQt5>=5.15.0
+sounddevice>=0.4.0
+soundfile>=0.12.0
+numpy>=1.21.0
+
+# Audio Processing
+noisereduce>=3.0.0
+scipy>=1.7.0
+pydub>=0.25.0
+
+# FastWhisper and AI Dependencies  
+faster-whisper>=1.1.0
+ctranslate2>=4.0.0
+torch>=2.0.0
+torchaudio>=2.0.0
+onnxruntime>=1.14.0
+
+# System Monitoring
+psutil>=5.8.0
+pynvml>=11.0.0
+
+# Development Tools (optional)
+pyright>=1.1.0
+
+# Additional dependencies automatically installed by faster-whisper:
+# - huggingface-hub>=0.13
+# - tokenizers<1,>=0.13
+# - av>=11
+# - tqdm
+# - PyYAML<7,>=5.3

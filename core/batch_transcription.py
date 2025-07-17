@@ -97,17 +97,56 @@ class BatchTranscriptionThread(QThread):
         model_settings = {k: v for k, v in model_settings.items() if v is not None}
         
         try:
+            # Log what device we're trying to use
+            device = model_settings.get("device", "cpu")
+            compute_type = model_settings.get("compute_type", "int8")
+            gpu_status = "🚀 CUDA GPU" if device == "cuda" else "🖥️ CPU"
+            logger.info(f"🔄 Creating batch model with {gpu_status} ({compute_type})")
+            
+            # Test CUDA availability for batch processing
+            if device == "cuda":
+                try:
+                    test_model = WhisperModel("tiny", device="cuda", compute_type="int8")
+                    del test_model  # Cleanup test model
+                    logger.info("✅ CUDA test passed for batch processing")
+                except Exception as cuda_test_error:
+                    logger.warning(f"🚨 CUDA test failed for batch: {cuda_test_error}")
+                    logger.warning("🔄 Forcing CPU fallback for batch processing")
+                    model_settings["device"] = "cpu"
+                    model_settings["compute_type"] = "int8"
+                    device = "cpu"
+                    gpu_status = "🖥️ CPU"
+            
             model = WhisperModel(**model_settings)
-            logger.info(f"Created optimized model: {model_settings}")
+            logger.info(f"✅ Batch model created with {gpu_status} ({compute_type})")
             return model
         except Exception as e:
             logger.error(f"Failed to create optimized model: {e}")
-            # Fallback to basic model
-            return WhisperModel(
-                model_size_or_path="base",
-                device="cpu",
-                compute_type="int8"
-            )
+            
+            # Intelligent fallback system for batch processing
+            fallback_configs = [
+                # Try CUDA with safer compute type first
+                {"model_size_or_path": "base", "device": "cuda", "compute_type": "int8"} if device == "cuda" else None,
+                # Then try CPU with safe configuration
+                {"model_size_or_path": "base", "device": "cpu", "compute_type": "int8"},
+            ]
+            
+            for config in filter(None, fallback_configs):
+                try:
+                    device_name = config['device']
+                    compute_name = config['compute_type']
+                    gpu_status = "🚀 CUDA GPU" if device_name == "cuda" else "🖥️ CPU"
+                    logger.info(f"🔄 Trying batch fallback with {gpu_status} ({compute_name})")
+                    
+                    fallback_model = WhisperModel(**config)
+                    logger.info(f"✅ Batch fallback model created with {gpu_status} ({compute_name})")
+                    return fallback_model
+                except Exception as fallback_error:
+                    logger.error(f"Batch fallback failed for {device_name}: {fallback_error}")
+                    continue
+            
+            logger.error("All batch fallback configurations failed")
+            return None
     
     def _determine_optimal_batch_size(self) -> int:
         """Determine optimal batch size based on available memory and CPU."""
@@ -151,7 +190,7 @@ class BatchTranscriptionThread(QThread):
             raise
     
     def _process_file_with_batched_pipeline(self, pipeline: BatchedInferencePipeline, 
-                                          file_path: str) -> Dict[str, Any]:
+                                          file_path: str, model: WhisperModel = None) -> Dict[str, Any]:
         """Process a single file using the batched pipeline."""
         try:
             start_time = time.time()
@@ -218,6 +257,11 @@ class BatchTranscriptionThread(QThread):
         """Process files in optimized batches."""
         results = []
         
+        # Ensure model is available
+        if model is None:
+            logger.error("Model is None in _process_files_in_batches")
+            return []
+        
         if self.use_batched_inference and len(self.audio_files) > 1:
             # Use BatchedInferencePipeline for multiple files
             try:
@@ -244,7 +288,7 @@ class BatchTranscriptionThread(QThread):
                     # Process batch with ThreadPoolExecutor for parallel I/O
                     with ThreadPoolExecutor(max_workers=min(self.max_workers, len(batch))) as executor:
                         batch_futures = {
-                            executor.submit(self._process_file_with_batched_pipeline, pipeline, file_path): file_path
+                            executor.submit(self._process_file_with_batched_pipeline, pipeline, file_path, model): file_path
                             for file_path in batch
                         }
                         
@@ -282,6 +326,11 @@ class BatchTranscriptionThread(QThread):
         """Fallback sequential processing method."""
         results = []
         
+        # Ensure model is available
+        if model is None:
+            logger.error("Model is None in _process_files_sequential")
+            return []
+        
         for i, file_path in enumerate(self.audio_files):
             if not self._is_running:
                 break
@@ -289,7 +338,12 @@ class BatchTranscriptionThread(QThread):
             try:
                 start_time = time.time()
                 
+                # Critical safety check before transcription
+                if model is None:
+                    raise RuntimeError(f"Model is None when attempting to transcribe {file_path}")
+                
                 # Use regular transcription method
+                logger.debug(f"Transcribing {os.path.basename(file_path)} with model {type(model).__name__}")
                 segments, info = model.transcribe(
                     file_path,
                     language=self.whisper_settings.get("language"),
@@ -369,6 +423,8 @@ class BatchTranscriptionThread(QThread):
             
             # Create optimized model
             model = self._create_optimized_model()
+            if model is None:
+                raise Exception("Failed to create model")
             self.timestamp_manager.end_phase("initialization")
             
             # Phase 2: Processing

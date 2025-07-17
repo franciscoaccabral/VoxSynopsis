@@ -227,21 +227,21 @@ class FFmpegCUDAOptimizer:
                     cuda_decoder = self.detector.get_optimal_decoder(codec)
                     
                     if cuda_decoder:
-                        # Use CUDA acceleration with specific decoder
+                        # Use CUDA acceleration for video decoding only
                         base_cmd.extend([
                             "-hwaccel", "cuda",
                             "-c:v", cuda_decoder,
                             "-hwaccel_output_format", "cuda"
                         ])
-                        logger.info(f"Using CUDA decoder: {cuda_decoder} for codec: {codec}")
+                        logger.info(f"Using CUDA video decoder: {cuda_decoder} for codec: {codec}")
                     else:
-                        # Fallback to generic CUDA acceleration
-                        base_cmd.extend(["-hwaccel", "cuda"])
-                        logger.info("Using generic CUDA acceleration")
+                        # Video codec not supported by CUDA, use auto acceleration
+                        base_cmd.extend(["-hwaccel", "auto"])
+                        logger.info("CUDA decoder not available for codec, using auto acceleration")
                 else:
-                    # Fallback to auto acceleration
+                    # Could not detect codec, use auto acceleration
                     base_cmd.extend(["-hwaccel", "auto"])
-                    logger.warning("Could not detect codec, using auto acceleration")
+                    logger.warning("Could not detect video codec, using auto acceleration")
                     
             except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
                 logger.error(f"Error detecting codec: {e}, falling back to auto acceleration")
@@ -267,45 +267,30 @@ class FFmpegCUDAOptimizer:
     
     def optimize_audio_tempo_cmd(self, input_file: str, output_file: str, 
                                 tempo_factor: float) -> List[str]:
-        """Optimize FFmpeg command for audio tempo changes with CUDA when available."""
+        """Optimize FFmpeg command for audio tempo changes (CPU optimized)."""
         
-        base_cmd = ["ffmpeg"]
-        
-        if self.cuda_enabled:
-            # For audio-only processing, CUDA helps mainly with decoding
-            base_cmd.extend(["-hwaccel", "cuda"])
-            logger.info("Using CUDA acceleration for audio tempo processing")
-        else:
-            # No CUDA, use multi-threading
-            logger.info("CUDA not available, using multi-threading for audio tempo")
-        
-        base_cmd.extend([
-            "-threads", "0",
+        # Audio tempo changes are CPU-only operations - no CUDA acceleration possible
+        base_cmd = [
+            "ffmpeg",
+            "-threads", "0",  # Use all available CPU threads
             "-i", input_file,
             "-filter:a", f"atempo={tempo_factor}",
             output_file,
             "-y"
-        ])
+        ]
         
+        logger.info("Using optimized CPU multi-threading for audio tempo processing")
         return base_cmd
     
     def optimize_audio_chunking_cmd(self, input_file: str, output_file: str, 
                                    start_time: float, duration: float, 
                                    sample_rate: int = 16000, channels: int = 1) -> List[str]:
-        """Optimize FFmpeg command for audio chunking with CUDA when available."""
+        """Optimize FFmpeg command for audio chunking (CPU optimized)."""
         
-        base_cmd = ["ffmpeg"]
-        
-        if self.cuda_enabled:
-            # Use CUDA acceleration for faster audio processing
-            base_cmd.extend(["-hwaccel", "cuda"])
-            logger.info("Using CUDA acceleration for audio chunking")
-        else:
-            # No CUDA, use multi-threading
-            logger.info("CUDA not available, using multi-threading for audio chunking")
-        
-        base_cmd.extend([
-            "-threads", "0",
+        # Audio chunking is CPU-only - no CUDA acceleration possible
+        base_cmd = [
+            "ffmpeg",
+            "-threads", "0",  # Use all available CPU threads
             "-i", input_file,
             "-ss", str(start_time),
             "-t", str(duration),
@@ -315,33 +300,27 @@ class FFmpegCUDAOptimizer:
             "-ac", str(channels),
             output_file,
             "-y"
-        ])
+        ]
         
+        logger.info("Using optimized CPU multi-threading for audio chunking")
         return base_cmd
     
     def optimize_silence_detection_cmd(self, input_file: str, 
                                      threshold_db: float = -40.0, 
                                      min_duration: float = 0.5) -> List[str]:
-        """Optimize FFmpeg command for silence detection with CUDA when available."""
+        """Optimize FFmpeg command for silence detection (CPU optimized)."""
         
-        base_cmd = ["ffmpeg"]
-        
-        if self.cuda_enabled:
-            # Use CUDA acceleration for faster audio analysis
-            base_cmd.extend(["-hwaccel", "cuda"])
-            logger.info("Using CUDA acceleration for silence detection")
-        else:
-            # No CUDA, use multi-threading
-            logger.info("CUDA not available, using multi-threading for silence detection")
-        
-        base_cmd.extend([
-            "-threads", "0",
+        # Silence detection is CPU-only - no CUDA acceleration possible for audio filters
+        base_cmd = [
+            "ffmpeg",
+            "-threads", "0",  # Use all available CPU threads
             "-i", input_file,
             "-af", f"silencedetect=noise={threshold_db}dB:d={min_duration}",
             "-f", "null",
             "-"
-        ])
+        ]
         
+        logger.info("Using optimized CPU multi-threading for silence detection")
         return base_cmd
     
     def optimize_audio_probe_cmd(self, input_file: str) -> List[str]:

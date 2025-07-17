@@ -15,7 +15,20 @@ python3 vox_synopsis_fast_whisper.py
 
 ### Installing Dependencies
 ```bash
-uv pip install -r requirements.txt
+# Use uv (requires pyproject.toml with [project] section)
+uv venv .venv --python 3.11
+uv add -r requirements.txt
+
+# If uv fails, contact user for guidance - do not use pip without permission
+```
+
+### Running with Virtual Environment
+```bash
+# Easy script runner (recommended)
+./run_voxsynopsis.sh
+
+# Manual activation
+source .venv/bin/activate && python3 vox_synopsis_fast_whisper.py
 ```
 
 ### Testing
@@ -119,37 +132,47 @@ Core libraries:
 - sounddevice: Audio I/O operations
 - faster-whisper: Optimized Whisper transcription
 - noisereduce: Audio post-processing
-- torch: ML backend for FastWhisper
+- torch + torchaudio: ML backend for FastWhisper with CUDA support
 - psutil: System resource monitoring
+- pynvml: NVIDIA GPU monitoring
+- ctranslate2: High-performance inference engine
+- scipy: Scientific computing for audio processing
 
 ## CUDA Acceleration
 
-### 🚀 Comprehensive CUDA Implementation (Janeiro 2025)
+### 🚀 Intelligent CUDA Implementation (Janeiro 2025)
 
-VoxSynopsis implementa aceleração CUDA completa para **FFmpeg** e **FastWhisper**, proporcionando ganhos significativos de performance em GPUs compatíveis.
+VoxSynopsis implementa aceleração CUDA inteligente, aplicando GPU acceleration apenas onde é tecnicamente possível e benéfico.
 
 #### **CUDA Components**
-- **FFmpeg Hardware Acceleration**: Decodificação e processamento de vídeo/áudio acelerados
-- **FastWhisper GPU Processing**: Transcrição acelerada por GPU
+- **FastWhisper GPU Processing**: Transcrição acelerada por GPU (2-5x speedup)
+- **FFmpeg Video Decoding**: Decodificação de vídeo acelerada (H.264/HEVC)
 - **Automatic Detection**: Detecção automática de capacidades CUDA
 - **Graceful Fallback**: Fallback automático para CPU quando necessário
 
 #### **Supported Hardware**
-- **GTX 10xx Series**: Suporte básico com `int8` compute type
+- **GTX 10xx Series**: Suporte `int8` para FastWhisper + decodificação de vídeo
 - **RTX 20xx/30xx/40xx**: Suporte completo com `float16` e `int8_float16`
 - **Professional Cards**: Suporte total para todas as funcionalidades
 
-#### **FFmpeg CUDA Acceleration**
-- **Video Decoding**: `h264_cuvid`, `hevc_cuvid`, `av1_cuvid`
-- **Audio Extraction**: Aceleração na extração de áudio de MP4
-- **Chunk Processing**: Criação de chunks acelerada por GPU
-- **Silence Detection**: Detecção de silêncio otimizada
+#### **Realistic CUDA Usage**
+```python
+# ✅ Operations using CUDA
+- FastWhisper transcription (GPU processing)
+- Video decoding (H.264/HEVC → audio extraction from MP4)
+
+# ❌ Operations NOT using CUDA (CPU optimized)
+- Audio chunking (audio-only, no video stream)
+- Audio tempo changes (audio filters)
+- Silence detection (audio filters)
+- Pure audio processing operations
+```
 
 #### **Performance Gains**
-- **Audio Extraction**: 1.1x speedup típico
-- **Audio Processing**: 1.3x speedup em operações de tempo
-- **FastWhisper**: 2-5x speedup dependendo do modelo e hardware
-- **Memory Efficiency**: Redução de uso de CPU durante processamento intensivo
+- **FastWhisper**: 2-5x speedup com CUDA vs CPU
+- **Video Decoding**: 2-3x mais rápido para extração de áudio de MP4
+- **Audio Operations**: CPU multi-thread otimizado (sem CUDA, mas eficiente)
+- **Overall**: Aceleração focada nas operações que realmente se beneficiam
 
 #### **Auto-Configuration**
 ```python
@@ -162,15 +185,16 @@ VoxSynopsis implementa aceleração CUDA completa para **FFmpeg** e **FastWhispe
 }
 ```
 
-#### **Status Monitoring**
+#### **Interface Monitoring**
 ```
-🔧 FastWhisper Performance Configuration:
-   💻 Hardware: 6 cores, 15.5GB RAM
-   🧵 Threading: 6 CPU threads
-   📱 Device: CUDA (NVIDIA GeForce GTX 1050 Ti) | int8
-   ⚙️  Environment: 0 CT2 variables set
-   📊 Recommendation: 'base' model optimal for your hardware
-   🚀 Ready for optimized transcription!
+# Interface Status (realística)
+🚀 CUDA (GTX 1050 Ti) | int8
+⚡ Whisper: GPU | FFmpeg: Video only
+🧵 Threads: 6
+
+# GPU Monitoring (quando disponível)
+GPU: [████████░░] 80% (GTX 1050 Ti, 65°C)
+VRAM: [███░░░░░░░] 30% (1.2GB / 4.0GB)
 ```
 
 #### **Implementation Files**
@@ -608,6 +632,42 @@ Before executing any development plan:
 - **Error Messages**: Use f-strings with descriptive context
 - **Logging**: Use module-level loggers, not print statements
 
+## Troubleshooting
+
+### CTranslate2/FastWhisper Import Errors
+Se você encontrar erros como "No module named 'ctranslate2'" ou "No module named 'faster_whisper'" durante a transcrição:
+
+**Problema**: Dependências não instaladas no ambiente virtual correto.
+
+**Solução**:
+```bash
+# 1. Criar ambiente virtual com Python 3.11
+uv venv .venv --python 3.11
+
+# 2. Instalar dependências (uv gerencia o ambiente automaticamente)
+uv add -r requirements.txt
+
+# 3. Executar aplicação
+./run_voxsynopsis.sh
+```
+
+**Verificação**:
+```bash
+source .venv/bin/activate
+python3 -c "import faster_whisper; import ctranslate2; print('✅ Dependencies OK')"
+```
+
+### Virtual Environment Issues
+- **Problema**: `uv add` requer `pyproject.toml` com seção `[project]`
+- **Solução**: Use `uv venv .venv --python 3.11` para criar ambiente e `uv add -r requirements.txt` para instalar
+- **Script**: Use `./run_voxsynopsis.sh` que ativa automaticamente o ambiente
+- **Nota**: O uv gerencia automaticamente o ambiente virtual - não precisa de `source .venv/bin/activate`
+- **Fallback**: Se uv falhar, questione o usuário antes de usar pip
+
+### Performance Issues
+- Consulte `docs/Performance_Optimization_VoxSynopsis.md` para otimizações
+- ⚠️ **Performance Protection**: Sempre pergunte antes de modificar parâmetros de performance
+
 ## Development Guidelines
 
 ### Adding New Features
@@ -618,6 +678,7 @@ Before executing any development plan:
 5. **Documentation**: Update both docstrings and CLAUDE.md
 6. **Mandatory Review**: Use Gemini CLI for plan and code review
 7. **⚠️ Performance Protection**: ALWAYS ask before changes that impact transcription performance
+8. **Package Management**: ALWAYS use uv - if uv fails, ask user before using pip
 
 ### Performance Protection Protocol
 **MANDATORY before any changes to performance-critical code:**
@@ -700,6 +761,7 @@ Before executing any development plan:
 8. **Quality First**: Prioritize code quality and maintainability over speed
 9. **⚠️ Performance Protection**: ALWAYS ask before changes that impact transcription performance
 10. **User Consent**: Get explicit approval for any performance-degrading modifications
+11. **Package Manager**: ALWAYS use uv - question user if uv fails before using pip
 
 ### Performance Protection Commitment
 

@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, List
 
 import psutil
+import torch
 from faster_whisper import WhisperModel
 from PyQt5.QtCore import QThread, pyqtSignal
 
@@ -249,22 +250,23 @@ class TranscriptionThread(QThread):
 
         # 3. Calcular pontos de corte (lógica "60s ± silêncio")
         try:
-            duration_str = (
-                subprocess.check_output(
-                    [
-                        "ffprobe",
-                        "-v",
-                        "error",
-                        "-show_entries",
-                        "format=duration",
-                        "-of",
-                        "default=noprint_wrappers=1:nokey=1",
-                        filepath,
-                    ]
-                )
-                .decode("utf-8")
-                .strip()
+            output = subprocess.check_output(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    filepath,
+                ]
             )
+            # Handle both bytes and string outputs
+            if isinstance(output, bytes):
+                duration_str = output.decode("utf-8").strip()
+            else:
+                duration_str = output.strip()
             total_duration = float(duration_str)
         except Exception as e:
             self.update_status.emit({"text": f"Erro ao obter duração do arquivo: {e}"})
@@ -690,7 +692,55 @@ class TranscriptionThread(QThread):
                 }
             )
             # Try optimized configuration first, fallback to safe config if needed
+            gpu_status = "🚀 CUDA GPU" if device == "cuda" else "🖥️ CPU"
+            self.update_status.emit({
+                "text": f"🔄 Inicializando modelo {model_size} com {gpu_status} ({compute_type})...",
+                "last_time": 0,
+                "total_time": 0,
+            })
+            
             try:
+                # Test CUDA availability before creating model
+                if device == "cuda":
+                    # Quick CUDA test to avoid cuDNN crashes
+                    try:
+                        self.update_status.emit({
+                            "text": "🧪 Testando compatibilidade CUDA...",
+                            "last_time": 0,
+                            "total_time": 0,
+                        })
+                        
+                        test_model = WhisperModel("tiny", device="cuda", compute_type="int8")
+                        del test_model  # Cleanup test model
+                        
+                        logger.info("✅ CUDA test passed - proceeding with CUDA model")
+                        print("🚀 CUDA COMPATIBILITY TEST PASSED")
+                        print(f"   GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'Unknown'}")
+                        print(f"   Compute Type: {compute_type}")
+                        
+                        self.update_status.emit({
+                            "text": "✅ CUDA test passed - loading model...",
+                            "last_time": 0,
+                            "total_time": 0,
+                        })
+                        
+                    except Exception as cuda_test_error:
+                        logger.error(f"🚨 CUDA test failed: {cuda_test_error}")
+                        print("❌ CUDA COMPATIBILITY TEST FAILED")
+                        print(f"   Error: {str(cuda_test_error)}")
+                        print("   Reason: Likely cuDNN library issue")
+                        print("   Solution: Install cuDNN or use CPU mode")
+                        print("🔄 FORCING CPU FALLBACK")
+                        
+                        self.update_status.emit({
+                            "text": "❌ CUDA failed - using CPU fallback",
+                            "last_time": 0,
+                            "total_time": 0,
+                        })
+                        
+                        device = "cpu"
+                        compute_type = "int8"
+                
                 model = WhisperModel(
                     model_size,
                     device=device,
@@ -698,37 +748,97 @@ class TranscriptionThread(QThread):
                     cpu_threads=self.cpu_threads,
                     num_workers=1,  # Otimizado: single worker para estabilidade CPU
                 )
+                
+                # Success message with clear indication of what's being used
+                final_gpu_status = "🚀 CUDA GPU" if device == "cuda" else "🖥️ CPU"
+                self.update_status.emit({
+                    "text": f"✅ Modelo carregado com {final_gpu_status} ({compute_type})",
+                    "last_time": 0,
+                    "total_time": 0,
+                    "device_info": {
+                        "device": device,
+                        "compute_type": compute_type,
+                        "model_size": model_size,
+                        "device_status": final_gpu_status
+                    }
+                })
+                
+                # Log important information about device usage
+                if device == "cuda":
+                    logger.info(f"🚀 CUDA GPU acceleration active: {model_size} model with {compute_type}")
+                    print(f"🚀 FINAL MODEL CONFIGURATION:")
+                    print(f"   Device: CUDA GPU")
+                    print(f"   Model: {model_size}")
+                    print(f"   Compute Type: {compute_type}")
+                    print(f"   Status: GPU acceleration active")
+                else:
+                    logger.info(f"🖥️ Using CPU: {model_size} model with {compute_type}")
+                    print(f"🖥️ FINAL MODEL CONFIGURATION:")
+                    print(f"   Device: CPU")
+                    print(f"   Model: {model_size}")
+                    print(f"   Compute Type: {compute_type}")
+                    print(f"   Status: CPU processing active")
             except Exception as e:
                 # Clear potentially problematic environment variables
                 from .performance import clear_problematic_environment_vars
                 clear_problematic_environment_vars()
                 
-                # Fallback to conservative configuration
+                # Intelligent fallback system - try to maintain CUDA if possible
                 self.update_status.emit({
-                    "text": f"Tentativa otimizada falhou ({str(e)[:50]}...), usando configuração conservadora...",
+                    "text": f"⚠️ Configuração inicial falhou ({str(e)[:50]}...), tentando fallback inteligente...",
                     "last_time": 0,
                     "total_time": 0,
                 })
                 
-                try:
-                    model = WhisperModel(
-                        model_size,
-                        device="cpu",  # Force CPU
-                        compute_type="int8",  # Safe compute type
-                        cpu_threads=min(4, self.cpu_threads),  # Conservative thread count
-                    )
-                except Exception as e2:
+                # Define fallback configurations in order of preference
+                fallback_configs = [
+                    # Try CUDA with safer compute type first
+                    {"device": "cuda", "compute_type": "int8", "cpu_threads": min(4, self.cpu_threads)} if device == "cuda" else None,
+                    # Then try CPU with safe configuration
+                    {"device": "cpu", "compute_type": "int8", "cpu_threads": min(4, self.cpu_threads)},
                     # Ultimate fallback with minimal configuration
-                    self.update_status.emit({
-                        "text": f"Configuração conservadora também falhou, usando configuração mínima...",
-                        "last_time": 0,
-                        "total_time": 0,
-                    })
-                    model = WhisperModel(
-                        "base",  # Force base model
-                        device="cpu",
-                        compute_type="int8",
-                    )
+                    {"device": "cpu", "compute_type": "int8", "cpu_threads": 2}
+                ]
+                
+                model = None
+                for config in filter(None, fallback_configs):
+                    try:
+                        self.update_status.emit({
+                            "text": f"🔄 Tentando modelo com {config['device'].upper()} ({config['compute_type']})...",
+                            "last_time": 0,
+                            "total_time": 0,
+                        })
+                        
+                        model = WhisperModel(model_size, **config)
+                        
+                        # Success message with clear indication of what's being used
+                        gpu_status = "🚀 CUDA GPU" if config['device'] == "cuda" else "🖥️ CPU"
+                        self.update_status.emit({
+                            "text": f"✅ Modelo carregado com {gpu_status} ({config['compute_type']})",
+                            "last_time": 0,
+                            "total_time": 0,
+                        })
+                        
+                        # Log important information about device usage
+                        if config['device'] == "cuda":
+                            logger.info(f"🚀 CUDA GPU acceleration active: {model_size} model with {config['compute_type']}")
+                        else:
+                            logger.warning(f"🖥️ Using CPU fallback: {model_size} model with {config['compute_type']}")
+                        
+                        break
+                        
+                    except Exception as fallback_error:
+                        self.update_status.emit({
+                            "text": f"❌ {config['device'].upper()} falhou: {str(fallback_error)[:50]}...",
+                            "last_time": 0,
+                            "total_time": 0,
+                        })
+                        logger.error(f"Fallback failed for {config['device']}: {fallback_error}")
+                        continue
+                
+                # If all fallbacks failed, raise exception
+                if model is None:
+                    raise Exception("Todos os fallbacks falharam - não foi possível criar modelo")
             self.update_status.emit(
                 {
                     "text": "Modelo carregado. Coletando e preparando arquivos...",
@@ -797,6 +907,29 @@ class TranscriptionThread(QThread):
             total_processing_time = 0
             processing_start_time = time.time()
             
+            # Ensure model is available for sequential processing
+            if model is None:
+                # Re-initialize model if not already available
+                logger.warning("Model is None at sequential processing fallback - re-initializing")
+                try:
+                    model = WhisperModel(
+                        model_size,
+                        device=device,
+                        compute_type=compute_type,
+                        cpu_threads=self.cpu_threads,
+                        num_workers=1,
+                    )
+                    logger.info("Model successfully re-initialized for sequential processing")
+                except Exception as e:
+                    logger.error(f"Failed to re-initialize model: {str(e)}")
+                    self.update_status.emit({
+                        "text": f"Erro crítico: Falha ao inicializar modelo - {str(e)}",
+                        "last_time": 0,
+                        "total_time": 0,
+                    })
+                    self.transcription_finished.emit("")
+                    return
+            
             # Log detailed configuration info
             config_info = [
                 f"\n{'='*60}",
@@ -839,6 +972,20 @@ class TranscriptionThread(QThread):
                 )
 
                 start_time = time.time()
+                
+                # Critical safety check before transcription
+                if model is None:
+                    logger.error(f"Model is None when attempting to transcribe {filepath}")
+                    self.update_status.emit({
+                        "text": "Erro crítico: Modelo não foi inicializado corretamente",
+                        "last_time": 0,
+                        "total_time": total_processing_time,
+                    })
+                    self.transcription_finished.emit("")
+                    return
+                
+                # Perform transcription
+                logger.debug(f"Transcribing {os.path.basename(filepath)} with model {type(model).__name__}")
                 segments, _ = model.transcribe(filepath, **transcribe_params)
                 transcription_text = "".join(segment.text for segment in segments)
                 end_time = time.time()

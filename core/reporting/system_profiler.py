@@ -149,7 +149,11 @@ class SystemProfiler:
                 try:
                     import pynvml
                     pynvml.nvmlInit()
-                    gpu_info['driver_version'] = pynvml.nvmlSystemGetDriverVersion().decode()
+                    driver_version = pynvml.nvmlSystemGetDriverVersion()
+                    if isinstance(driver_version, bytes):
+                        gpu_info['driver_version'] = driver_version.decode()
+                    else:
+                        gpu_info['driver_version'] = driver_version
                 except ImportError:
                     pass
                     
